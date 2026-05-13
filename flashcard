@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>英语单词闪卡</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+  }
+
+  .header {
+    color: white;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header .counter { font-size: 14px; opacity: 0.85; margin-top: 6px; }
+
+  .card-container {
+    width: 100%;
+    max-width: 340px;
+    height: 420px;
+    perspective: 1000px;
+    cursor: pointer;
+    margin-bottom: 32px;
+  }
+
+  .card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card.flipped { transform: rotateY(180deg); }
+
+  .card-front, .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+
+  .card-front {
+    background: white;
+  }
+  .card-back {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    transform: rotateY(180deg);
+    color: white;
+  }
+
+  .card-emoji { font-size: 80px; margin-bottom: 20px; line-height: 1; }
+  .card-word { font-size: 32px; font-weight: 700; color: #333; text-align: center; }
+  .card-phonetic { font-size: 16px; color: #999; margin-top: 8px; }
+
+  .speak-btn {
+    background: rgba(102, 126, 234, 0.12);
+    border: none;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+    cursor: pointer;
+    margin-top: 14px;
+    transition: background 0.15s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .speak-btn:active { transform: scale(0.92); background: rgba(102, 126, 234, 0.25); }
+
+  .card-back .speak-btn { background: rgba(255,255,255,0.2); }
+  .card-back .speak-btn:active { background: rgba(255,255,255,0.35); }
+  .card-back .card-chinese { font-size: 36px; font-weight: 700; text-align: center; }
+  .card-back .card-english { font-size: 18px; opacity: 0.85; margin-top: 12px; }
+  .card-back .card-example { font-size: 14px; opacity: 0.75; margin-top: 16px; text-align: center; line-height: 1.5; }
+
+  .hint { color: rgba(255,255,255,0.6); font-size: 13px; margin-bottom: 20px; text-align: center; }
+
+  .btn-next {
+    background: white;
+    color: #764ba2;
+    border: none;
+    padding: 16px 48px;
+    font-size: 18px;
+    font-weight: 700;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    transition: transform 0.15s, box-shadow 0.15s;
+    user-select: none;
+  }
+  .btn-next:active {
+    transform: scale(0.96);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+
+  .progress-bar {
+    width: 100%;
+    max-width: 340px;
+    height: 4px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    margin-top: 24px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: white;
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  .shuffle-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+  }
+
+  .shuffle-btn.hidden { display: none; }
+
+  /* === Mode Switcher === */
+  .mode-switcher {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  .mode-tab {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.8);
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    backdrop-filter: blur(10px);
+  }
+
+  .mode-tab.active {
+    background: white;
+    color: #764ba2;
+    border-color: white;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  .mode-tab:active { transform: scale(0.95); }
+
+  /* === Review Queue === */
+  .review-queue {
+    color: rgba(255,255,255,0.9);
+    font-size: 14px;
+    margin-top: 6px;
+    font-weight: 600;
+  }
+
+  /* === Assessment Buttons === */
+  .assessment-btns {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .assessment-btns.hidden { display: none; }
+
+  .btn-assess {
+    flex: 1;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    user-select: none;
+  }
+
+  .btn-assess:active { transform: scale(0.96); }
+
+  .btn-know { background: #4CAF50; color: white; }
+  .btn-dontknow { background: #FF5252; color: white; }
+
+  /* === Screens === */
+  .screen {
+    width: 100%;
+    max-width: 340px;
+    margin-bottom: 24px;
+  }
+
+  .screen.hidden { display: none; }
+
+  .screen-card {
+    background: white;
+    border-radius: 20px;
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+
+  .screen-emoji { font-size: 64px; margin-bottom: 16px; }
+
+  .screen-card h2 { font-size: 24px; color: #333; margin-bottom: 8px; }
+
+  .screen-desc { color: #666; font-size: 15px; margin-bottom: 24px; line-height: 1.5; }
+
+  .btn-start {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 14px 40px;
+    font-size: 17px;
+    font-weight: 700;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(102,126,234,0.4);
+    transition: transform 0.15s;
+    margin: 6px;
+  }
+
+  .btn-start:active { transform: scale(0.96); }
+
+  .btn-secondary {
+    background: rgba(102,126,234,0.12);
+    color: #764ba2;
+    border: 1px solid rgba(102,126,234,0.3);
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin: 6px;
+  }
+
+  .btn-secondary:active { transform: scale(0.96); }
+
+  .results-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  /* === Score Display === */
+  .score-display {
+    font-size: 48px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 16px 0;
+  }
+
+  .motivational-text { font-size: 16px; color: #666; margin-bottom: 16px; line-height: 1.5; }
+
+  /* === Wrong Words List === */
+  .wrong-words-section h3 { font-size: 16px; color: #333; margin-bottom: 12px; }
+
+  .wrong-words-list {
+    max-height: 200px;
+    overflow-y: auto;
+    text-align: left;
+    padding: 0 8px;
+  }
+
+  .wrong-word-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    background: #f8f8f8;
+    gap: 12px;
+  }
+
+  .wrong-word-item .ww-emoji { font-size: 24px; }
+  .wrong-word-item .ww-en { font-weight: 700; color: #333; font-size: 15px; }
+  .wrong-word-item .ww-zh { color: #666; font-size: 14px; }
+
+  @media (max-height: 600px) {
+    .card-container { height: 320px; margin-bottom: 20px; }
+    .card-emoji { font-size: 60px; }
+    .card-word { font-size: 26px; }
+    .header { margin-bottom: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<button class="shuffle-btn" id="shuffleBtn" onclick="shuffleCards()" title="随机排序">&#x1f500;</button>
+
+<div class="header">
+  <h1>&#x1f4da; 英语单词闪卡</h1>
+  <div class="mode-switcher">
+    <button class="mode-tab active" id="tabLearning" onclick="switchMode('learning')">&#x1f4d6; 学习模式</button>
+    <button class="mode-tab" id="tabTest" onclick="switchMode('test')">&#x1f4dd; 检测模式</button>
+  </div>
+  <div class="counter" id="counter">1 / 203</div>
+  <div class="review-queue" id="reviewQueue" style="display:none;">&#x1f4d6; 待复习: <span id="reviewCount">0</span> 个</div>
+</div>
+
+<div class="card-container" id="cardContainer" onclick="flipCard()">
+  <div class="card" id="card">
+    <div class="card-front">
+      <div class="card-emoji" id="emoji"></div>
+      <div class="card-word" id="word"></div>
+      <div class="card-phonetic" id="phonetic"></div>
+      <button class="speak-btn" onclick="event.stopPropagation(); speakWord()" title="朗读单词">&#x1f50a;</button>
+    </div>
+    <div class="card-back">
+      <div class="card-chinese" id="chinese"></div>
+      <div class="card-english" id="englishBack"></div>
+      <button class="speak-btn" onclick="event.stopPropagation(); speakExample()" title="朗读例句">&#x1f50a;</button>
+      <div class="card-example" id="example"></div>
+    </div>
+  </div>
+</div>
+
+<div class="hint" id="hintText">&#x1f446; 点击卡片翻转查看中文</div>
+
+<button class="btn-next" id="btnNext" onclick="nextCard()">&#x27a1;&#xfe0f; 下一个</button>
+
+<div class="assessment-btns hidden" id="assessmentBtns">
+  <button class="btn-assess btn-know" onclick="event.stopPropagation(); assessWord('know')">&#x2705; 认识</button>
+  <button class="btn-assess btn-dontknow" onclick="event.stopPropagation(); assessWord('dontknow')">&#x274c; 不认识</button>
+</div>
+
+<div class="progress-bar">
+  <div class="progress-fill" id="progress"></div>
+</div>
+
+<!-- Test Welcome Screen -->
+<div class="screen hidden" id="testWelcome">
+  <div class="screen-card">
+    <div class="screen-emoji">&#x1f4dd;</div>
+    <h2>单词检测</h2>
+    <p class="screen-desc">随机抽取 50 个单词，测试你的掌握程度</p>
+    <button class="btn-start" onclick="startTest()">&#x1f680; 开始测试</button>
+  </div>
+</div>
+
+<!-- Test Results Screen -->
+<div class="screen hidden" id="testResults">
+  <div class="screen-card">
+    <div class="screen-emoji" id="resultEmoji"></div>
+    <h2 id="resultTitle"></h2>
+    <div class="score-display" id="scoreDisplay"></div>
+    <div class="motivational-text" id="motivationalText"></div>
+    <div class="wrong-words-section" id="wrongWordsSection" style="display:none;">
+      <h3>&#x1f4d6; 需要加强的单词</h3>
+      <div class="wrong-words-list" id="wrongWordsList"></div>
+    </div>
+    <div class="results-actions">
+      <button class="btn-start" onclick="startTest()">&#x1f504; 再测一次</button>
+      <button class="btn-secondary" onclick="switchMode('learning')">&#x1f4d6; 去学习模式</button>
+    </div>
+  </div>
+</div>
+
+<!-- Learning Complete Screen -->
+<div class="screen hidden" id="learningComplete">
+  <div class="screen-card">
+    <div class="screen-emoji">&#x1f389;</div>
+    <h2>恭喜完成！</h2>
+    <p class="screen-desc" id="learningCompleteText"></p>
+    <div class="results-actions">
+      <button class="btn-start" onclick="restartLearning()">&#x1f504; 重新开始</button>
+      <button class="btn-secondary" onclick="switchMode('test')">&#x1f4dd; 去检测模式</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const words = [
+  // 动物 Animals
+  {en:"Cat",zh:"猫",emoji:"🐱",phonetic:"/kæt/",example:"I have a cute cat."},
+  {en:"Dog",zh:"狗",emoji:"🐶",phonetic:"/dɒɡ/",example:"The dog is running."},
+  {en:"Bird",zh:"鸟",emoji:"🐦",phonetic:"/bɜːrd/",example:"A bird is singing."},
+  {en:"Fish",zh:"鱼",emoji:"🐟",phonetic:"/fɪʃ/",example:"The fish swims fast."},
+  {en:"Rabbit",zh:"兔子",emoji:"🐰",phonetic:"/ˈræbɪt/",example:"The rabbit hops around."},
+  {en:"Bear",zh:"熊",emoji:"🐻",phonetic:"/beər/",example:"The bear is big and brown."},
+  {en:"Monkey",zh:"猴子",emoji:"🐵",phonetic:"/ˈmʌŋki/",example:"The monkey climbs trees."},
+  {en:"Elephant",zh:"大象",emoji:"🐘",phonetic:"/ˈelɪfənt/",example:"The elephant is very big."},
+  {en:"Lion",zh:"狮子",emoji:"🦁",phonetic:"/ˈlaɪən/",example:"The lion is king of animals."},
+  {en:"Tiger",zh:"老虎",emoji:"🐯",phonetic:"/ˈtaɪɡər/",example:"The tiger runs fast."},
+  {en:"Panda",zh:"熊猫",emoji:"🐼",phonetic:"/ˈpændə/",example:"The panda eats bamboo."},
+  {en:"Pig",zh:"猪",emoji:"🐷",phonetic:"/pɪɡ/",example:"The pig is pink."},
+  {en:"Cow",zh:"奶牛",emoji:"🐮",phonetic:"/kaʊ/",example:"The cow gives us milk."},
+  {en:"Duck",zh:"鸭子",emoji:"🦆",phonetic:"/dʌk/",example:"The duck swims in the pond."},
+  {en:"Chicken",zh:"鸡",emoji:"🐔",phonetic:"/ˈtʃɪkɪn/",example:"The chicken lays eggs."},
+  {en:"Horse",zh:"马",emoji:"🐴",phonetic:"/hɔːrs/",example:"The horse runs fast."},
+  {en:"Sheep",zh:"绵羊",emoji:"🐑",phonetic:"/ʃiːp/",example:"The sheep is white and fluffy."},
+  {en:"Frog",zh:"青蛙",emoji:"🐸",phonetic:"/frɒɡ/",example:"The frog jumps high."},
+  {en:"Snake",zh:"蛇",emoji:"🐍",phonetic:"/sneɪk/",example:"The snake is long."},
+  {en:"Turtle",zh:"海龟",emoji:"🐢",phonetic:"/ˈtɜːrtl/",example:"The turtle walks slowly."},
+  {en:"Butterfly",zh:"蝴蝶",emoji:"🦋",phonetic:"/ˈbʌtərflaɪ/",example:"The butterfly is beautiful."},
+  {en:"Bee",zh:"蜜蜂",emoji:"🐝",phonetic:"/biː/",example:"The bee makes honey."},
+  {en:"Ant",zh:"蚂蚁",emoji:"🐜",phonetic:"/ænt/",example:"The ant is very small."},
+  {en:"Mouse",zh:"老鼠",emoji:"🐭",phonetic:"/maʊs/",example:"The mouse is small and fast."},
+  {en:"Giraffe",zh:"长颈鹿",emoji:"🦒",phonetic:"/dʒɪˈræf/",example:"The giraffe is very tall."},
+
+  // 水果 Fruits
+  {en:"Apple",zh:"苹果",emoji:"🍎",phonetic:"/ˈæpl/",example:"I like to eat apples."},
+  {en:"Banana",zh:"香蕉",emoji:"🍌",phonetic:"/bəˈnænə/",example:"The banana is yellow."},
+  {en:"Orange",zh:"橙子",emoji:"🍊",phonetic:"/ˈɒrɪndʒ/",example:"Orange juice is yummy."},
+  {en:"Grape",zh:"葡萄",emoji:"🍇",phonetic:"/ɡreɪp/",example:"Grapes are sweet."},
+  {en:"Strawberry",zh:"草莓",emoji:"🍓",phonetic:"/ˈstrɔːbəri/",example:"I love strawberries."},
+  {en:"Watermelon",zh:"西瓜",emoji:"🍉",phonetic:"/ˈwɔːtərmelən/",example:"Watermelon is good in summer."},
+  {en:"Peach",zh:"桃子",emoji:"🍑",phonetic:"/piːtʃ/",example:"The peach is sweet and juicy."},
+  {en:"Pear",zh:"梨",emoji:"🍐",phonetic:"/peər/",example:"This pear is very sweet."},
+  {en:"Lemon",zh:"柠檬",emoji:"🍋",phonetic:"/ˈlemən/",example:"Lemon is very sour."},
+  {en:"Cherry",zh:"樱桃",emoji:"🍒",phonetic:"/ˈtʃeri/",example:"Cherries are red and sweet."},
+  {en:"Mango",zh:"芒果",emoji:"🥭",phonetic:"/ˈmæŋɡoʊ/",example:"I like mango juice."},
+  {en:"Coconut",zh:"椰子",emoji:"🥥",phonetic:"/ˈkoʊkənʌt/",example:"Coconut water is refreshing."},
+
+  // 蔬菜 Vegetables
+  {en:"Carrot",zh:"胡萝卜",emoji:"🥕",phonetic:"/ˈkærət/",example:"Rabbits love carrots."},
+  {en:"Tomato",zh:"西红柿",emoji:"🍅",phonetic:"/təˈmeɪtoʊ/",example:"The tomato is red."},
+  {en:"Potato",zh:"土豆",emoji:"🥔",phonetic:"/pəˈteɪtoʊ/",example:"I like french fries."},
+  {en:"Corn",zh:"玉米",emoji:"🌽",phonetic:"/kɔːrn/",example:"Corn is yellow and sweet."},
+  {en:"Mushroom",zh:"蘑菇",emoji:"🍄",phonetic:"/ˈmʌʃrʊm/",example:"Mushrooms grow in the forest."},
+  {en:"Onion",zh:"洋葱",emoji:"🧅",phonetic:"/ˈʌnjən/",example:"Onions make me cry."},
+  {en:"Broccoli",zh:"西兰花",emoji:"🥦",phonetic:"/ˈbrɒkəli/",example:"Broccoli is good for you."},
+  {en:"Pepper",zh:"辣椒",emoji:"🌶️",phonetic:"/ˈpepər/",example:"This pepper is very hot."},
+  {en:"Garlic",zh:"大蒜",emoji:"🧄",phonetic:"/ˈɡɑːrlɪk/",example:"Garlic tastes good in food."},
+
+  // 食物 Food
+  {en:"Bread",zh:"面包",emoji:"🍞",phonetic:"/bred/",example:"I eat bread for breakfast."},
+  {en:"Rice",zh:"米饭",emoji:"🍚",phonetic:"/raɪs/",example:"I like rice with fish."},
+  {en:"Egg",zh:"鸡蛋",emoji:"🥚",phonetic:"/eɡ/",example:"I had an egg this morning."},
+  {en:"Cake",zh:"蛋糕",emoji:"🎂",phonetic:"/keɪk/",example:"Happy birthday! Here is a cake."},
+  {en:"Cookie",zh:"饼干",emoji:"🍪",phonetic:"/ˈkʊki/",example:"Cookies are sweet and crunchy."},
+  {en:"Candy",zh:"糖果",emoji:"🍬",phonetic:"/ˈkændi/",example:"Don't eat too much candy."},
+  {en:"Chocolate",zh:"巧克力",emoji:"🍫",phonetic:"/ˈtʃɒklət/",example:"I love chocolate."},
+  {en:"Ice Cream",zh:"冰淇淋",emoji:"🍦",phonetic:"/ˌaɪs ˈkriːm/",example:"Ice cream is cold and sweet."},
+  {en:"Pizza",zh:"披萨",emoji:"🍕",phonetic:"/ˈpiːtsə/",example:"Let's eat pizza today."},
+  {en:"Hamburger",zh:"汉堡包",emoji:"🍔",phonetic:"/ˈhæmbɜːrɡər/",example:"I want a hamburger."},
+  {en:"Noodles",zh:"面条",emoji:"🍜",phonetic:"/ˈnuːdlz/",example:"I like Chinese noodles."},
+  {en:"Soup",zh:"汤",emoji:"🥣",phonetic:"/suːp/",example:"The soup is hot."},
+  {en:"Cheese",zh:"奶酪",emoji:"🧀",phonetic:"/tʃiːz/",example:"Mice love cheese."},
+  {en:"Popcorn",zh:"爆米花",emoji:"🍿",phonetic:"/ˈpɒpkɔːrn/",example:"We eat popcorn at the movies."},
+  {en:"Donut",zh:"甜甜圈",emoji:"🍩",phonetic:"/ˈdoʊnʌt/",example:"The donut is sweet and yummy."},
+
+  // 饮料 Drinks
+  {en:"Milk",zh:"牛奶",emoji:"🥛",phonetic:"/mɪlk/",example:"I drink milk every day."},
+  {en:"Water",zh:"水",emoji:"💧",phonetic:"/ˈwɔːtər/",example:"Please give me some water."},
+  {en:"Juice",zh:"果汁",emoji:"🧃",phonetic:"/dʒuːs/",example:"I like orange juice."},
+  {en:"Tea",zh:"茶",emoji:"🍵",phonetic:"/tiː/",example:"Mom likes drinking tea."},
+  {en:"Coffee",zh:"咖啡",emoji:"☕",phonetic:"/ˈkɒfi/",example:"Dad drinks coffee."},
+
+  // 颜色 Colors
+  {en:"Red",zh:"红色",emoji:"🔴",phonetic:"/red/",example:"The apple is red."},
+  {en:"Blue",zh:"蓝色",emoji:"🔵",phonetic:"/bluː/",example:"The sky is blue."},
+  {en:"Green",zh:"绿色",emoji:"🟢",phonetic:"/ɡriːn/",example:"The grass is green."},
+  {en:"Yellow",zh:"黄色",emoji:"🟡",phonetic:"/ˈjeloʊ/",example:"The sun is yellow."},
+  {en:"Pink",zh:"粉色",emoji:"💗",phonetic:"/pɪŋk/",example:"I like pink flowers."},
+  {en:"Purple",zh:"紫色",emoji:"🟣",phonetic:"/ˈpɜːrpl/",example:"Grapes are purple."},
+  {en:"Black",zh:"黑色",emoji:"⚫",phonetic:"/blæk/",example:"The cat is black."},
+  {en:"White",zh:"白色",emoji:"⚪",phonetic:"/waɪt/",example:"Snow is white."},
+  {en:"Brown",zh:"棕色",emoji:"🟤",phonetic:"/braʊn/",example:"The bear is brown."},
+
+  // 数字 Numbers
+  {en:"One",zh:"一",emoji:"1️⃣",phonetic:"/wʌn/",example:"I have one nose."},
+  {en:"Two",zh:"二",emoji:"2️⃣",phonetic:"/tuː/",example:"I have two eyes."},
+  {en:"Three",zh:"三",emoji:"3️⃣",phonetic:"/θriː/",example:"I see three birds."},
+  {en:"Four",zh:"四",emoji:"4️⃣",phonetic:"/fɔːr/",example:"A dog has four legs."},
+  {en:"Five",zh:"五",emoji:"5️⃣",phonetic:"/faɪv/",example:"I have five fingers."},
+  {en:"Six",zh:"六",emoji:"6️⃣",phonetic:"/sɪks/",example:"There are six eggs."},
+  {en:"Seven",zh:"七",emoji:"7️⃣",phonetic:"/ˈsevən/",example:"There are seven days in a week."},
+  {en:"Eight",zh:"八",emoji:"8️⃣",phonetic:"/eɪt/",example:"An octopus has eight legs."},
+  {en:"Nine",zh:"九",emoji:"9️⃣",phonetic:"/naɪn/",example:"I go to school at nine."},
+  {en:"Ten",zh:"十",emoji:"🔟",phonetic:"/ten/",example:"I have ten fingers."},
+
+  // 身体部位 Body
+  {en:"Head",zh:"头",emoji:"🗣️",phonetic:"/hed/",example:"Touch your head."},
+  {en:"Eye",zh:"眼睛",emoji:"👁️",phonetic:"/aɪ/",example:"I have two eyes."},
+  {en:"Nose",zh:"鼻子",emoji:"👃",phonetic:"/noʊz/",example:"Touch your nose."},
+  {en:"Mouth",zh:"嘴巴",emoji:"👄",phonetic:"/maʊθ/",example:"Open your mouth."},
+  {en:"Ear",zh:"耳朵",emoji:"👂",phonetic:"/ɪər/",example:"I hear with my ears."},
+  {en:"Hand",zh:"手",emoji:"✋",phonetic:"/hænd/",example:"Wash your hands."},
+  {en:"Foot",zh:"脚",emoji:"🦶",phonetic:"/fʊt/",example:"I walk with my feet."},
+  {en:"Arm",zh:"手臂",emoji:"💪",phonetic:"/ɑːrm/",example:"I wave with my arm."},
+  {en:"Leg",zh:"腿",emoji:"🦵",phonetic:"/leɡ/",example:"I run with my legs."},
+  {en:"Hair",zh:"头发",emoji:"💇",phonetic:"/heər/",example:"She has long hair."},
+  {en:"Face",zh:"脸",emoji:"😊",phonetic:"/feɪs/",example:"Wash your face."},
+  {en:"Tooth",zh:"牙齿",emoji:"🦷",phonetic:"/tuːθ/",example:"Brush your teeth."},
+
+  // 家庭成员 Family
+  {en:"Mom",zh:"妈妈",emoji:"👩",phonetic:"/mɒm/",example:"I love my mom."},
+  {en:"Dad",zh:"爸爸",emoji:"👨",phonetic:"/dæd/",example:"My dad is strong."},
+  {en:"Baby",zh:"宝宝",emoji:"👶",phonetic:"/ˈbeɪbi/",example:"The baby is sleeping."},
+  {en:"Grandma",zh:"奶奶/外婆",emoji:"👵",phonetic:"/ˈɡrænmɑː/",example:"Grandma tells stories."},
+  {en:"Grandpa",zh:"爷爷/外公",emoji:"👴",phonetic:"/ˈɡrænpɑː/",example:"Grandpa is kind."},
+  {en:"Sister",zh:"姐妹",emoji:"👧",phonetic:"/ˈsɪstər/",example:"My sister is cute."},
+  {en:"Brother",zh:"兄弟",emoji:"👦",phonetic:"/ˈbrʌðər/",example:"My brother plays with me."},
+  {en:"Family",zh:"家人",emoji:"👨‍👩‍👧‍👦",phonetic:"/ˈfæməli/",example:"I love my family."},
+
+  // 自然 Nature
+  {en:"Sun",zh:"太阳",emoji:"☀️",phonetic:"/sʌn/",example:"The sun is hot."},
+  {en:"Moon",zh:"月亮",emoji:"🌙",phonetic:"/muːn/",example:"The moon is bright at night."},
+  {en:"Star",zh:"星星",emoji:"⭐",phonetic:"/stɑːr/",example:"I can see stars at night."},
+  {en:"Rain",zh:"雨",emoji:"🌧️",phonetic:"/reɪn/",example:"It is raining today."},
+  {en:"Snow",zh:"雪",emoji:"❄️",phonetic:"/snoʊ/",example:"I like to play in the snow."},
+  {en:"Cloud",zh:"云",emoji:"☁️",phonetic:"/klaʊd/",example:"The cloud is white."},
+  {en:"Flower",zh:"花",emoji:"🌸",phonetic:"/ˈflaʊər/",example:"The flower smells nice."},
+  {en:"Tree",zh:"树",emoji:"🌳",phonetic:"/triː/",example:"The tree is tall."},
+  {en:"Grass",zh:"草",emoji:"🌿",phonetic:"/ɡræs/",example:"The grass is green."},
+  {en:"Mountain",zh:"山",emoji:"⛰️",phonetic:"/ˈmaʊntɪn/",example:"The mountain is very high."},
+  {en:"River",zh:"河",emoji:"🏞️",phonetic:"/ˈrɪvər/",example:"The river flows fast."},
+  {en:"Ocean",zh:"海洋",emoji:"🌊",phonetic:"/ˈoʊʃən/",example:"The ocean is very big."},
+  {en:"Rainbow",zh:"彩虹",emoji:"🌈",phonetic:"/ˈreɪnboʊ/",example:"I see a rainbow!"},
+  {en:"Wind",zh:"风",emoji:"💨",phonetic:"/wɪnd/",example:"The wind is strong today."},
+
+  // 交通工具 Transport
+  {en:"Car",zh:"汽车",emoji:"🚗",phonetic:"/kɑːr/",example:"We go by car."},
+  {en:"Bus",zh:"公交车",emoji:"🚌",phonetic:"/bʌs/",example:"I take the bus to school."},
+  {en:"Train",zh:"火车",emoji:"🚂",phonetic:"/treɪn/",example:"The train is fast."},
+  {en:"Airplane",zh:"飞机",emoji:"✈️",phonetic:"/ˈerpleɪn/",example:"The airplane flies high."},
+  {en:"Bicycle",zh:"自行车",emoji:"🚲",phonetic:"/ˈbaɪsɪkl/",example:"I ride my bicycle."},
+  {en:"Boat",zh:"船",emoji:"⛵",phonetic:"/boʊt/",example:"The boat floats on water."},
+  {en:"Ship",zh:"轮船",emoji:"🚢",phonetic:"/ʃɪp/",example:"The ship is very big."},
+  {en:"Truck",zh:"卡车",emoji:"🚛",phonetic:"/trʌk/",example:"The truck carries boxes."},
+  {en:"Taxi",zh:"出租车",emoji:"🚕",phonetic:"/ˈtæksi/",example:"Let's take a taxi."},
+
+  // 房屋物品 House
+  {en:"Door",zh:"门",emoji:"🚪",phonetic:"/dɔːr/",example:"Close the door please."},
+  {en:"Window",zh:"窗户",emoji:"🪟",phonetic:"/ˈwɪndoʊ/",example:"Open the window."},
+  {en:"Bed",zh:"床",emoji:"🛏️",phonetic:"/bed/",example:"I sleep in my bed."},
+  {en:"Table",zh:"桌子",emoji:"🪑",phonetic:"/ˈteɪbl/",example:"The book is on the table."},
+  {en:"Chair",zh:"椅子",emoji:"💺",phonetic:"/tʃeər/",example:"Sit on the chair."},
+  {en:"Book",zh:"书",emoji:"📖",phonetic:"/bʊk/",example:"I like to read books."},
+  {en:"Clock",zh:"钟",emoji:"🕐",phonetic:"/klɒk/",example:"The clock tells time."},
+  {en:"Phone",zh:"电话",emoji:"📱",phonetic:"/foʊn/",example:"Mom is on the phone."},
+  {en:"TV",zh:"电视",emoji:"📺",phonetic:"/ˌtiːˈviː/",example:"We watch TV together."},
+  {en:"Key",zh:"钥匙",emoji:"🔑",phonetic:"/kiː/",example:"Where is my key?"},
+  {en:"Bag",zh:"书包",emoji:"🎒",phonetic:"/bæɡ/",example:"My bag is heavy."},
+  {en:"Pencil",zh:"铅笔",emoji:"✏️",phonetic:"/ˈpensl/",example:"I write with a pencil."},
+  {en:"Pen",zh:"钢笔",emoji:"🖊️",phonetic:"/pen/",example:"I draw with a pen."},
+
+  // 衣物 Clothing
+  {en:"Shirt",zh:"衬衫",emoji:"👕",phonetic:"/ʃɜːrt/",example:"I wear a blue shirt."},
+  {en:"Dress",zh:"连衣裙",emoji:"👗",phonetic:"/dres/",example:"She has a pretty dress."},
+  {en:"Hat",zh:"帽子",emoji:"🎩",phonetic:"/hæt/",example:"Wear your hat."},
+  {en:"Shoes",zh:"鞋子",emoji:"👟",phonetic:"/ʃuːz/",example:"Put on your shoes."},
+  {en:"Socks",zh:"袜子",emoji:"🧦",phonetic:"/sɒks/",example:"My socks are white."},
+  {en:"Coat",zh:"外套",emoji:"🧥",phonetic:"/koʊt/",example:"Wear your coat, it's cold."},
+  {en:"Pants",zh:"裤子",emoji:"👖",phonetic:"/pænts/",example:"I need new pants."},
+  {en:"Scarf",zh:"围巾",emoji:"🧣",phonetic:"/skɑːrf/",example:"The scarf is warm."},
+  {en:"Gloves",zh:"手套",emoji:"🧤",phonetic:"/ɡlʌvz/",example:"I wear gloves in winter."},
+  {en:"Umbrella",zh:"雨伞",emoji:"☂️",phonetic:"/ʌmˈbrelə/",example:"Take an umbrella, it's raining."},
+
+  // 动作 Verbs
+  {en:"Run",zh:"跑",emoji:"🏃",phonetic:"/rʌn/",example:"I can run fast."},
+  {en:"Jump",zh:"跳",emoji:"🤸",phonetic:"/dʒʌmp/",example:"The frog can jump."},
+  {en:"Eat",zh:"吃",emoji:"🍽️",phonetic:"/iːt/",example:"Let's eat lunch."},
+  {en:"Drink",zh:"喝",emoji:"🥤",phonetic:"/drɪŋk/",example:"I drink water."},
+  {en:"Sleep",zh:"睡觉",emoji:"😴",phonetic:"/sliːp/",example:"Time to sleep."},
+  {en:"Read",zh:"阅读",emoji:"📚",phonetic:"/riːd/",example:"I like to read stories."},
+  {en:"Write",zh:"写",emoji:"✍️",phonetic:"/raɪt/",example:"I write my name."},
+  {en:"Sing",zh:"唱歌",emoji:"🎤",phonetic:"/sɪŋ/",example:"I like to sing songs."},
+  {en:"Dance",zh:"跳舞",emoji:"💃",phonetic:"/dæns/",example:"I can dance."},
+  {en:"Swim",zh:"游泳",emoji:"🏊",phonetic:"/swɪm/",example:"I can swim."},
+  {en:"Play",zh:"玩",emoji:"🎮",phonetic:"/pleɪ/",example:"Let's play together."},
+  {en:"Walk",zh:"走路",emoji:"🚶",phonetic:"/wɔːk/",example:"I walk to school."},
+  {en:"Talk",zh:"说话",emoji:"💬",phonetic:"/tɔːk/",example:"I talk to my friends."},
+  {en:"Listen",zh:"听",emoji:"👂",phonetic:"/ˈlɪsn/",example:"Listen to the music."},
+  {en:"Draw",zh:"画画",emoji:"🎨",phonetic:"/drɔː/",example:"I like to draw pictures."},
+  {en:"Fly",zh:"飞",emoji:"🕊️",phonetic:"/flaɪ/",example:"Birds can fly."},
+  {en:"Climb",zh:"爬",emoji:"🧗",phonetic:"/klaɪm/",example:"Monkeys climb trees."},
+  {en:"Laugh",zh:"笑",emoji:"😄",phonetic:"/lɑːf/",example:"We laugh together."},
+  {en:"Cry",zh:"哭",emoji:"😢",phonetic:"/kraɪ/",example:"Don't cry, be brave."},
+  {en:"Help",zh:"帮助",emoji:"🤝",phonetic:"/help/",example:"I help my mom."},
+  {en:"Give",zh:"给",emoji:"🎁",phonetic:"/ɡɪv/",example:"I give you a gift."},
+  {en:"Love",zh:"爱",emoji:"❤️",phonetic:"/lʌv/",example:"I love my family."},
+  {en:"Think",zh:"想/思考",emoji:"🤔",phonetic:"/θɪŋk/",example:"Let me think about it."},
+  {en:"Look",zh:"看",emoji:"👀",phonetic:"/lʊk/",example:"Look at the sky."},
+
+  // 形容词 Adjectives
+  {en:"Big",zh:"大的",emoji:"🐘",phonetic:"/bɪɡ/",example:"The elephant is big."},
+  {en:"Small",zh:"小的",emoji:"🐜",phonetic:"/smɔːl/",example:"The ant is small."},
+  {en:"Happy",zh:"开心的",emoji:"😄",phonetic:"/ˈhæpi/",example:"I am happy today."},
+  {en:"Sad",zh:"伤心的",emoji:"😢",phonetic:"/sæd/",example:"I feel sad."},
+  {en:"Hot",zh:"热的",emoji:"🔥",phonetic:"/hɒt/",example:"The soup is hot."},
+  {en:"Cold",zh:"冷的",emoji:"🥶",phonetic:"/koʊld/",example:"It is cold today."},
+  {en:"Fast",zh:"快的",emoji:"⚡",phonetic:"/fæst/",example:"The car is fast."},
+  {en:"Slow",zh:"慢的",emoji:"🐢",phonetic:"/sloʊ/",example:"The turtle is slow."},
+  {en:"Good",zh:"好的",emoji:"👍",phonetic:"/ɡʊd/",example:"You did a good job."},
+  {en:"Bad",zh:"坏的",emoji:"👎",phonetic:"/bæd/",example:"That is a bad idea."},
+  {en:"Clean",zh:"干净的",emoji:"✨",phonetic:"/kliːn/",example:"Keep the room clean."},
+  {en:"Dirty",zh:"脏的",emoji:"💩",phonetic:"/ˈdɜːrti/",example:"My shoes are dirty."},
+  {en:"New",zh:"新的",emoji:"🆕",phonetic:"/nuː/",example:"I have a new toy."},
+  {en:"Old",zh:"旧的/老的",emoji:"👴",phonetic:"/oʊld/",example:"This is an old book."},
+  {en:"Tall",zh:"高的",emoji:"🏔️",phonetic:"/tɔːl/",example:"The tree is tall."},
+  {en:"Short",zh:"矮的/短的",emoji:"📏",phonetic:"/ʃɔːrt/",example:"The pencil is short."},
+  {en:"Beautiful",zh:"美丽的",emoji:"🌺",phonetic:"/ˈbjuːtɪfl/",example:"The flower is beautiful."},
+  {en:"Cute",zh:"可爱的",emoji:"🥰",phonetic:"/kjuːt/",example:"The baby is cute."},
+
+  // 地点 Places
+  {en:"School",zh:"学校",emoji:"🏫",phonetic:"/skuːl/",example:"I go to school."},
+  {en:"Park",zh:"公园",emoji:"🏞️",phonetic:"/pɑːrk/",example:"We play in the park."},
+  {en:"Home",zh:"家",emoji:"🏠",phonetic:"/hoʊm/",example:"I go home."},
+  {en:"Zoo",zh:"动物园",emoji:"🦓",phonetic:"/zuː/",example:"We went to the zoo."},
+  {en:"Store",zh:"商店",emoji:"🏪",phonetic:"/stɔːr/",example:"Let's go to the store."},
+  {en:"Hospital",zh:"医院",emoji:"🏥",phonetic:"/ˈhɒspɪtl/",example:"The doctor is at the hospital."},
+  {en:"Library",zh:"图书馆",emoji:"📚",phonetic:"/ˈlaɪbreri/",example:"I read books at the library."},
+  {en:"Kitchen",zh:"厨房",emoji:"🍳",phonetic:"/ˈkɪtʃɪn/",example:"Mom is in the kitchen."},
+  {en:"Garden",zh:"花园",emoji:"🌻",phonetic:"/ˈɡɑːrdn/",example:"Flowers grow in the garden."},
+  {en:"Beach",zh:"海滩",emoji:"🏖️",phonetic:"/biːtʃ/",example:"We play on the beach."},
+
+  // 天气 Weather
+  {en:"Weather",zh:"天气",emoji:"🌤️",phonetic:"/ˈweðər/",example:"How is the weather today?"},
+  {en:"Sunny",zh:"晴朗的",emoji:"☀️",phonetic:"/ˈsʌni/",example:"It is a sunny day."},
+  {en:"Cloudy",zh:"多云的",emoji:"☁️",phonetic:"/ˈklaʊdi/",example:"It is cloudy today."},
+  {en:"Rainy",zh:"下雨的",emoji:"🌧️",phonetic:"/ˈreɪni/",example:"It is a rainy day."},
+  {en:"Windy",zh:"有风的",emoji:"🌬️",phonetic:"/ˈwɪndi/",example:"It is very windy."},
+  {en:"Storm",zh:"暴风雨",emoji:"⛈️",phonetic:"/stɔːrm/",example:"There is a big storm."},
+  {en:"Lightning",zh:"闪电",emoji:"⚡",phonetic:"/ˈlaɪtnɪŋ/",example:"I see lightning in the sky."},
+  {en:"Thunder",zh:"雷",emoji:"🔊",phonetic:"/ˈθʌndər/",example:"I hear thunder."},
+  {en:"Fog",zh:"雾",emoji:"🌫️",phonetic:"/fɒɡ/",example:"The fog is thick."},
+  {en:"Ice",zh:"冰",emoji:"🧊",phonetic:"/aɪs/",example:"The ice is cold."},
+
+  // 季节 Seasons
+  {en:"Spring",zh:"春天",emoji:"🌷",phonetic:"/sprɪŋ/",example:"Flowers bloom in spring."},
+  {en:"Summer",zh:"夏天",emoji:"🏖️",phonetic:"/ˈsʌmər/",example:"It is hot in summer."},
+  {en:"Autumn",zh:"秋天",emoji:"🍂",phonetic:"/ˈɔːtəm/",example:"Leaves fall in autumn."},
+  {en:"Winter",zh:"冬天",emoji:"❄️",phonetic:"/ˈwɪntər/",example:"It snows in winter."},
+
+  // 时间 Time
+  {en:"Morning",zh:"早上",emoji:"🌅",phonetic:"/ˈmɔːrnɪŋ/",example:"I wake up in the morning."},
+  {en:"Noon",zh:"中午",emoji:"🕛",phonetic:"/nuːn/",example:"We eat at noon."},
+  {en:"Afternoon",zh:"下午",emoji:"🌤️",phonetic:"/ˌɑːftərˈnuːn/",example:"I play in the afternoon."},
+  {en:"Evening",zh:"傍晚",emoji:"🌆",phonetic:"/ˈiːvnɪŋ/",example:"We eat dinner in the evening."},
+  {en:"Night",zh:"夜晚",emoji:"🌙",phonetic:"/naɪt/",example:"Good night!"},
+  {en:"Today",zh:"今天",emoji:"📅",phonetic:"/təˈdeɪ/",example:"Today is Monday."},
+  {en:"Tomorrow",zh:"明天",emoji:"📆",phonetic:"/təˈmɒroʊ/",example:"See you tomorrow."},
+  {en:"Yesterday",zh:"昨天",emoji:"📅",phonetic:"/ˈjestərdeɪ/",example:"Yesterday was fun."},
+  {en:"Day",zh:"白天/天",emoji:"☀️",phonetic:"/deɪ/",example:"What a beautiful day!"},
+  {en:"Week",zh:"星期",emoji:"📆",phonetic:"/wiːk/",example:"There are seven days in a week."},
+  {en:"Month",zh:"月",emoji:"📅",phonetic:"/mʌnθ/",example:"There are twelve months in a year."},
+  {en:"Year",zh:"年",emoji:"📅",phonetic:"/jɪər/",example:"Happy New Year!"},
+  {en:"Watch",zh:"手表",emoji:"⌚",phonetic:"/wɒtʃ/",example:"I have a new watch."},
+  {en:"Monday",zh:"星期一",emoji:"1️⃣",phonetic:"/ˈmʌndeɪ/",example:"School starts on Monday."},
+  {en:"Friday",zh:"星期五",emoji:"🎉",phonetic:"/ˈfraɪdeɪ/",example:"Friday is my favorite day."},
+  {en:"Sunday",zh:"星期日",emoji:"😴",phonetic:"/ˈsʌndeɪ/",example:"I rest on Sunday."},
+
+  // 数字扩展 Numbers 11-100
+  {en:"Eleven",zh:"十一",emoji:"🔢",phonetic:"/ɪˈlevən/",example:"I have eleven crayons."},
+  {en:"Twelve",zh:"十二",emoji:"🔢",phonetic:"/twelv/",example:"There are twelve months."},
+  {en:"Twenty",zh:"二十",emoji:"🔢",phonetic:"/ˈtwenti/",example:"I have twenty fingers and toes."},
+  {en:"Fifty",zh:"五十",emoji:"🔢",phonetic:"/ˈfɪfti/",example:"There are fifty states."},
+  {en:"Hundred",zh:"一百",emoji:"💯",phonetic:"/ˈhʌndrəd/",example:"I got a hundred on the test!"},
+  {en:"First",zh:"第一",emoji:"🥇",phonetic:"/fɜːrst/",example:"I am first in line."},
+  {en:"Last",zh:"最后",emoji:"🏁",phonetic:"/lɑːst/",example:"I am last in line."},
+
+  // 形状 Shapes
+  {en:"Circle",zh:"圆形",emoji:"⭕",phonetic:"/ˈsɜːrkl/",example:"Draw a circle."},
+  {en:"Square",zh:"正方形",emoji:"🟦",phonetic:"/skweər/",example:"The box is a square."},
+  {en:"Triangle",zh:"三角形",emoji:"🔺",phonetic:"/ˈtraɪæŋɡl/",example:"A triangle has three sides."},
+  {en:"Heart",zh:"心形",emoji:"❤️",phonetic:"/hɑːrt/",example:"I drew a heart."},
+
+  // 家庭扩展 Family
+  {en:"Father",zh:"父亲",emoji:"👨",phonetic:"/ˈfɑːðər/",example:"My father is a teacher."},
+  {en:"Mother",zh:"母亲",emoji:"👩",phonetic:"/ˈmʌðər/",example:"My mother is kind."},
+  {en:"Parents",zh:"父母",emoji:"👫",phonetic:"/ˈperənts/",example:"I love my parents."},
+  {en:"Uncle",zh:"叔叔/舅舅",emoji:"👨",phonetic:"/ˈʌŋkl/",example:"My uncle lives far away."},
+  {en:"Aunt",zh:"阿姨/姑姑",emoji:"👩",phonetic:"/ænt/",example:"My aunt is nice."},
+  {en:"Cousin",zh:"堂/表兄弟姐妹",emoji:"👦",phonetic:"/ˈkʌzn/",example:"My cousin is my age."},
+  {en:"Friend",zh:"朋友",emoji:"🤝",phonetic:"/frend/",example:"She is my best friend."},
+  {en:"Boy",zh:"男孩",emoji:"👦",phonetic:"/bɔɪ/",example:"The boy is playing."},
+  {en:"Girl",zh:"女孩",emoji:"👧",phonetic:"/ɡɜːrl/",example:"The girl is reading."},
+  {en:"People",zh:"人们",emoji:"👥",phonetic:"/ˈpiːpl/",example:"Many people are here."},
+  {en:"Man",zh:"男人",emoji:"🧑",phonetic:"/mæn/",example:"The man is tall."},
+  {en:"Woman",zh:"女人",emoji:"👩",phonetic:"/ˈwʊmən/",example:"The woman is kind."},
+  {en:"Child",zh:"孩子",emoji:"👶",phonetic:"/tʃaɪld/",example:"The child is happy."},
+  {en:"Children",zh:"孩子们",emoji:"👧👦",phonetic:"/ˈtʃɪldrən/",example:"The children are playing."},
+  {en:"Neighbor",zh:"邻居",emoji:"🏘️",phonetic:"/ˈneɪbər/",example:"Our neighbor is friendly."},
+
+  // 身体扩展 Body
+  {en:"Neck",zh:"脖子",emoji:"🦒",phonetic:"/nek/",example:"The giraffe has a long neck."},
+  {en:"Shoulder",zh:"肩膀",emoji:"🤷",phonetic:"/ˈʃoʊldər/",example:"I shrug my shoulders."},
+  {en:"Knee",zh:"膝盖",emoji:"🦵",phonetic:"/niː/",example:"I hurt my knee."},
+  {en:"Finger",zh:"手指",emoji:"👆",phonetic:"/ˈfɪŋɡər/",example:"I have ten fingers."},
+  {en:"Tongue",zh:"舌头",emoji:"👅",phonetic:"/tʌŋ/",example:"Stick out your tongue."},
+  {en:"Cheek",zh:"脸颊",emoji:"😊",phonetic:"/tʃiːk/",example:"She kissed my cheek."},
+  {en:"Chin",zh:"下巴",emoji:"🤔",phonetic:"/tʃɪn/",example:"Touch your chin."},
+  {en:"Belly",zh:"肚子",emoji:"🤰",phonetic:"/ˈbeli/",example:"My belly is full."},
+  {en:"Blood",zh:"血",emoji:"🩸",phonetic:"/blʌd/",example:"I see blood on my finger."},
+  {en:"Bone",zh:"骨头",emoji:"🦴",phonetic:"/boʊn/",example:"The dog has a bone."},
+
+  // 动物扩展 Animals
+  {en:"Wolf",zh:"狼",emoji:"🐺",phonetic:"/wʊlf/",example:"The wolf howls at night."},
+  {en:"Fox",zh:"狐狸",emoji:"🦊",phonetic:"/fɒks/",example:"The fox is clever."},
+  {en:"Deer",zh:"鹿",emoji:"🦌",phonetic:"/dɪər/",example:"I saw a deer in the forest."},
+  {en:"Owl",zh:"猫头鹰",emoji:"🦉",phonetic:"/aʊl/",example:"The owl flies at night."},
+  {en:"Eagle",zh:"鹰",emoji:"🦅",phonetic:"/ˈiːɡl/",example:"The eagle flies high."},
+  {en:"Penguin",zh:"企鹅",emoji:"🐧",phonetic:"/ˈpeŋɡwɪn/",example:"Penguins live in cold places."},
+  {en:"Whale",zh:"鲸鱼",emoji:"🐳",phonetic:"/weɪl/",example:"The whale is huge."},
+  {en:"Dolphin",zh:"海豚",emoji:"🐬",phonetic:"/ˈdɒlfɪn/",example:"Dolphins are smart."},
+  {en:"Shark",zh:"鲨鱼",emoji:"🦈",phonetic:"/ʃɑːrk/",example:"The shark swims fast."},
+  {en:"Crab",zh:"螃蟹",emoji:"🦀",phonetic:"/kræb/",example:"The crab walks sideways."},
+  {en:"Spider",zh:"蜘蛛",emoji:"🕷️",phonetic:"/ˈspaɪdər/",example:"The spider has eight legs."},
+  {en:"Worm",zh:"虫子",emoji:"🪱",phonetic:"/wɜːrm/",example:"The worm lives in the dirt."},
+  {en:"Snail",zh:"蜗牛",emoji:"🐌",phonetic:"/sneɪl/",example:"The snail is very slow."},
+  {en:"Hamster",zh:"仓鼠",emoji:"🐹",phonetic:"/ˈhæmstər/",example:"My hamster runs on a wheel."},
+
+  // 植物 Plants
+  {en:"Leaf",zh:"叶子",emoji:"🍃",phonetic:"/liːf/",example:"The leaf falls from the tree."},
+  {en:"Fruit",zh:"水果",emoji:"🍎",phonetic:"/fruːt/",example:"I eat fruit every day."},
+  {en:"Seed",zh:"种子",emoji:"🌱",phonetic:"/siːd/",example:"I planted a seed."},
+  {en:"Branch",zh:"树枝",emoji:"🌿",phonetic:"/bræntʃ/",example:"The bird sits on a branch."},
+  {en:"Forest",zh:"森林",emoji:"🌲",phonetic:"/ˈfɒrɪst/",example:"The forest is green."},
+  {en:"Bush",zh:"灌木",emoji:"🌳",phonetic:"/bʊʃ/",example:"The bush has flowers."},
+
+  // 食物扩展 Food
+  {en:"Butter",zh:"黄油",emoji:"🧈",phonetic:"/ˈbʌtər/",example:"I put butter on bread."},
+  {en:"Jam",zh:"果酱",emoji:"🍯",phonetic:"/dʒæm/",example:"I like jam on toast."},
+  {en:"Salt",zh:"盐",emoji:"🧂",phonetic:"/sɔːlt/",example:"Pass me the salt."},
+  {en:"Sugar",zh:"糖",emoji:"🍬",phonetic:"/ˈʃʊɡər/",example:"Don't eat too much sugar."},
+  {en:"Honey",zh:"蜂蜜",emoji:"🍯",phonetic:"/ˈhʌni/",example:"Bees make honey."},
+  {en:"Nut",zh:"坚果",emoji:"🥜",phonetic:"/nʌt/",example:"I like eating nuts."},
+  {en:"Meat",zh:"肉",emoji:"🥩",phonetic:"/miːt/",example:"I eat meat for dinner."},
+  // 植物 Plants
+  {en:"Vegetable",zh:"蔬菜",emoji:"🥬",phonetic:"/ˈvedʒtəbl/",example:"Eat your vegetables."},
+  {en:"Sandwich",zh:"三明治",emoji:"🥪",phonetic:"/ˈsænwɪtʃ/",example:"I made a sandwich."},
+  {en:"Salad",zh:"沙拉",emoji:"🥗",phonetic:"/ˈsæləd/",example:"The salad is fresh."},
+  {en:"Sauce",zh:"酱料",emoji:"🫙",phonetic:"/sɔːs/",example:"I like tomato sauce."},
+  {en:"Snack",zh:"零食",emoji:"🍿",phonetic:"/snæk/",example:"I eat snacks after school."},
+  {en:"Meal",zh:"一顿饭",emoji:"🍽️",phonetic:"/miːl/",example:"Dinner is the biggest meal."},
+  {en:"Breakfast",zh:"早餐",emoji:"🥞",phonetic:"/ˈbrekfəst/",example:"I eat breakfast at seven."},
+  {en:"Lunch",zh:"午餐",emoji:"🥪",phonetic:"/lʌntʃ/",example:"We have lunch at noon."},
+  {en:"Dinner",zh:"晚餐",emoji:"🍲",phonetic:"/ˈdɪnər/",example:"Dinner is ready!"},
+
+  // 房间 Rooms
+  {en:"Bathroom",zh:"浴室",emoji:"🛁",phonetic:"/ˈbæθruːm/",example:"I wash in the bathroom."},
+  {en:"Bedroom",zh:"卧室",emoji:"🛏️",phonetic:"/ˈbedruːm/",example:"I sleep in the bedroom."},
+  {en:"Living Room",zh:"客厅",emoji:"🛋️",phonetic:"/ˈlɪvɪŋ ruːm/",example:"We watch TV in the living room."},
+  {en:"Hall",zh:"走廊",emoji:"🚪",phonetic:"/hɔːl/",example:"Walk down the hall."},
+  {en:"Stairs",zh:"楼梯",emoji:"🪜",phonetic:"/steərz/",example:"Go up the stairs."},
+  {en:"Floor",zh:"地板/楼层",emoji:"🏢",phonetic:"/flɔːr/",example:"Sit on the floor."},
+  {en:"Wall",zh:"墙",emoji:"🧱",phonetic:"/wɔːl/",example:"There is a picture on the wall."},
+  {en:"Ceiling",zh:"天花板",emoji:"🏠",phonetic:"/ˈsiːlɪŋ/",example:"The ceiling is high."},
+
+  // 家居物品 Furniture
+  {en:"Fork",zh:"叉子",emoji:"🍴",phonetic:"/fɔːrk/",example:"Use a fork to eat."},
+  {en:"Spoon",zh:"勺子",emoji:"🥄",phonetic:"/spuːn/",example:"I use a spoon for soup."},
+  {en:"Plate",zh:"盘子",emoji:"🍽️",phonetic:"/pleɪt/",example:"The plate is white."},
+  {en:"Bowl",zh:"碗",emoji:"🥣",phonetic:"/boʊl/",example:"I eat rice from a bowl."},
+  {en:"Cup",zh:"杯子",emoji:"☕",phonetic:"/kʌp/",example:"Give me a cup of water."},
+  {en:"Glass",zh:"玻璃杯",emoji:"🥛",phonetic:"/ɡlɑːs/",example:"The glass is full."},
+  {en:"Bottle",zh:"瓶子",emoji:"🍼",phonetic:"/ˈbɒtl/",example:"I have a water bottle."},
+  {en:"Towel",zh:"毛巾",emoji:"🧻",phonetic:"/ˈtaʊəl/",example:"Dry your hands with a towel."},
+  {en:"Soap",zh:"肥皂",emoji:"🧼",phonetic:"/soʊp/",example:"Wash with soap."},
+  {en:"Mirror",zh:"镜子",emoji:"🪞",phonetic:"/ˈmɪrər/",example:"Look in the mirror."},
+  {en:"Lamp",zh:"灯",emoji:"💡",phonetic:"/læmp/",example:"Turn on the lamp."},
+  {en:"Pillow",zh:"枕头",emoji:"🛏️",phonetic:"/ˈpɪloʊ/",example:"I rest on my pillow."},
+  {en:"Blanket",zh:"毯子",emoji:"🧣",phonetic:"/ˈblæŋkɪt/",example:"Cover yourself with a blanket."},
+
+  // 学校 School
+  {en:"Teacher",zh:"老师",emoji:"👩‍🏫",phonetic:"/ˈtiːtʃər/",example:"My teacher is nice."},
+  {en:"Student",zh:"学生",emoji:"🧑‍🎓",phonetic:"/ˈstuːdənt/",example:"I am a student."},
+  {en:"Class",zh:"班级/课",emoji:"🏫",phonetic:"/klɑːs/",example:"The class starts at nine."},
+  {en:"Lesson",zh:"课程",emoji:"📖",phonetic:"/ˈlesn/",example:"Today's lesson is fun."},
+  {en:"Homework",zh:"作业",emoji:"📝",phonetic:"/ˈhoʊmwɜːrk/",example:"I do my homework."},
+  {en:"Test",zh:"考试",emoji:"📝",phonetic:"/test/",example:"I have a test today."},
+  {en:"Paper",zh:"纸",emoji:"📄",phonetic:"/ˈpeɪpər/",example:"Write on the paper."},
+  {en:"Eraser",zh:"橡皮",emoji:"🧹",phonetic:"/ɪˈreɪzər/",example:"I need an eraser."},
+  {en:"Ruler",zh:"尺子",emoji:"📏",phonetic:"/ˈruːlər/",example:"Measure with a ruler."},
+  {en:"Desk",zh:"课桌",emoji:"🪑",phonetic:"/desk/",example:"My books are on the desk."},
+  {en:"Classroom",zh:"教室",emoji:"🏫",phonetic:"/ˈklɑːsruːm/",example:"Our classroom is big."},
+  {en:"Blackboard",zh:"黑板",emoji:"📋",phonetic:"/ˈblækbɔːrd/",example:"Look at the blackboard."},
+  {en:"Scissors",zh:"剪刀",emoji:"✂️",phonetic:"/ˈsɪzərz/",example:"Cut with scissors."},
+  {en:"Glue",zh:"胶水",emoji:"🧴",phonetic:"/ɡluː/",example:"I need glue for my project."},
+  {en:"Crayon",zh:"蜡笔",emoji:"🖍️",phonetic:"/ˈkreɪɒn/",example:"I draw with crayons."},
+
+  // 玩具 Toys
+  {en:"Toy",zh:"玩具",emoji:"🧸",phonetic:"/tɔɪ/",example:"I have a new toy."},
+  {en:"Ball",zh:"球",emoji:"⚽",phonetic:"/bɔːl/",example:"I play with a ball."},
+  {en:"Doll",zh:"洋娃娃",emoji:"🪆",phonetic:"/dɒl/",example:"The doll is pretty."},
+  {en:"Balloon",zh:"气球",emoji:"🎈",phonetic:"/bəˈluːn/",example:"I got a red balloon."},
+  {en:"Kite",zh:"风筝",emoji:"🪁",phonetic:"/kaɪt/",example:"I fly my kite."},
+  {en:"Puzzle",zh:"拼图",emoji:"🧩",phonetic:"/ˈpʌzl/",example:"I solve the puzzle."},
+  {en:"Game",zh:"游戏",emoji:"🎮",phonetic:"/ɡeɪm/",example:"Let's play a game."},
+  {en:"Robot",zh:"机器人",emoji:"🤖",phonetic:"/ˈroʊbɒt/",example:"My robot can walk."},
+  {en:"Bike",zh:"自行车",emoji:"🚲",phonetic:"/baɪk/",example:"I ride my bike."},
+
+  // 运动 Sports
+  {en:"Football",zh:"足球",emoji:"🏈",phonetic:"/ˈfʊtbɔːl/",example:"I like football."},
+  {en:"Basketball",zh:"篮球",emoji:"🏀",phonetic:"/ˈbæskɪtbɔːl/",example:"I play basketball."},
+  {en:"Tennis",zh:"网球",emoji:"🎾",phonetic:"/ˈtenɪs/",example:"I play tennis."},
+  {en:"Baseball",zh:"棒球",emoji:"⚾",phonetic:"/ˈbeɪsbɔːl/",example:"I watch baseball."},
+  {en:"Race",zh:"赛跑",emoji:"🏃",phonetic:"/reɪs/",example:"I won the race."},
+
+  // 音乐 Music
+  {en:"Music",zh:"音乐",emoji:"🎵",phonetic:"/ˈmjuːzɪk/",example:"I like music."},
+  {en:"Song",zh:"歌曲",emoji:"🎶",phonetic:"/sɒŋ/",example:"I sing a song."},
+  {en:"Drum",zh:"鼓",emoji:"🥁",phonetic:"/drʌm/",example:"I play the drum."},
+  {en:"Guitar",zh:"吉他",emoji:"🎸",phonetic:"/ɡɪˈtɑːr/",example:"He plays guitar."},
+  {en:"Piano",zh:"钢琴",emoji:"🎹",phonetic:"/piˈænoʊ/",example:"She plays piano."},
+
+  // 职业 Jobs
+  {en:"Doctor",zh:"医生",emoji:"👨‍⚕️",phonetic:"/ˈdɒktər/",example:"The doctor helps people."},
+  {en:"Nurse",zh:"护士",emoji:"👩‍⚕️",phonetic:"/nɜːrs/",example:"The nurse is kind."},
+  {en:"Driver",zh:"司机",emoji:"🚗",phonetic:"/ˈdraɪvər/",example:"The driver drives the bus."},
+  {en:"Farmer",zh:"农民",emoji:"👨‍🌾",phonetic:"/ˈfɑːrmər/",example:"The farmer grows food."},
+  {en:"Police",zh:"警察",emoji:"👮",phonetic:"/pəˈliːs/",example:"The police keeps us safe."},
+  {en:"Artist",zh:"艺术家",emoji:"🎨",phonetic:"/ˈɑːrtɪst/",example:"The artist paints pictures."},
+
+  // 情感 Emotions
+  {en:"Angry",zh:"生气的",emoji:"😠",phonetic:"/ˈæŋɡri/",example:"Don't be angry."},
+  {en:"Scared",zh:"害怕的",emoji:"😨",phonetic:"/skeərd/",example:"I am scared of the dark."},
+  {en:"Tired",zh:"累的",emoji:"😫",phonetic:"/taɪərd/",example:"I am tired today."},
+  {en:"Excited",zh:"兴奋的",emoji:"🤩",phonetic:"/ɪkˈsaɪtɪd/",example:"I am so excited!"},
+  {en:"Hungry",zh:"饿的",emoji:"🤤",phonetic:"/ˈhʌŋɡri/",example:"I am hungry."},
+  {en:"Thirsty",zh:"渴的",emoji:"😅",phonetic:"/ˈθɜːrsti/",example:"I am thirsty."},
+  {en:"Sick",zh:"生病的",emoji:"🤒",phonetic:"/sɪk/",example:"I feel sick today."},
+  {en:"Brave",zh:"勇敢的",emoji:"🦸",phonetic:"/breɪv/",example:"You are very brave."},
+  {en:"Kind",zh:"善良的",emoji:"💕",phonetic:"/kaɪnd/",example:"She is very kind."},
+  {en:"Shy",zh:"害羞的",emoji:"😊",phonetic:"/ʃaɪ/",example:"The girl is shy."},
+  {en:"Proud",zh:"骄傲的",emoji:"😎",phonetic:"/praʊd/",example:"I am proud of you."},
+  {en:"Bored",zh:"无聊的",emoji:"😑",phonetic:"/bɔːrd/",example:"I am bored."},
+  {en:"Funny",zh:"有趣的/好笑的",emoji:"😂",phonetic:"/ˈfʌni/",example:"That is very funny."},
+  {en:"Lucky",zh:"幸运的",emoji:"🍀",phonetic:"/ˈlʌki/",example:"You are so lucky."},
+  {en:"Busy",zh:"忙的",emoji:"📅",phonetic:"/ˈbɪzi/",example:"I am busy today."},
+  {en:"Ready",zh:"准备好的",emoji:"✅",phonetic:"/ˈredi/",example:"I am ready."},
+
+  // 形容词扩展 Adjectives
+  {en:"Strong",zh:"强壮的",emoji:"💪",phonetic:"/strɒŋ/",example:"He is very strong."},
+  {en:"Weak",zh:"弱的",emoji:"😰",phonetic:"/wiːk/",example:"I feel weak."},
+  {en:"Rich",zh:"富有的",emoji:"💰",phonetic:"/rɪtʃ/",example:"The king is rich."},
+  {en:"Poor",zh:"贫穷的",emoji:"😔",phonetic:"/pʊər/",example:"The man is poor."},
+  {en:"Fat",zh:"胖的",emoji:"🐷",phonetic:"/fæt/",example:"The cat is fat."},
+  {en:"Thin",zh:"瘦的",emoji:"🦴",phonetic:"/θɪn/",example:"She is thin."},
+  {en:"Heavy",zh:"重的",emoji:"🏋️",phonetic:"/ˈhevi/",example:"The box is heavy."},
+  {en:"Light",zh:"轻的/亮的",emoji:"💡",phonetic:"/laɪt/",example:"The bag is light."},
+  {en:"Soft",zh:"软的",emoji:"🧸",phonetic:"/sɒft/",example:"The pillow is soft."},
+  {en:"Hard",zh:"硬的",emoji:"🪨",phonetic:"/hɑːrd/",example:"The rock is hard."},
+  {en:"Smooth",zh:"光滑的",emoji:"🪞",phonetic:"/smuːð/",example:"The glass is smooth."},
+  {en:"Rough",zh:"粗糙的",emoji:"🪨",phonetic:"/rʌf/",example:"The tree bark is rough."},
+  {en:"Wet",zh:"湿的",emoji:"💦",phonetic:"/wet/",example:"My clothes are wet."},
+  {en:"Dry",zh:"干的",emoji:"☀️",phonetic:"/draɪ/",example:"The towel is dry."},
+  {en:"Sweet",zh:"甜的",emoji:"🍬",phonetic:"/swiːt/",example:"The candy is sweet."},
+  {en:"Sour",zh:"酸的",emoji:"🍋",phonetic:"/ˈsaʊər/",example:"The lemon is sour."},
+  {en:"Bitter",zh:"苦的",emoji:"☕",phonetic:"/ˈbɪtər/",example:"Coffee is bitter."},
+  {en:"Spicy",zh:"辣的",emoji:"🌶️",phonetic:"/ˈspaɪsi/",example:"This is very spicy."},
+  {en:"Fresh",zh:"新鲜的",emoji:"🥬",phonetic:"/freʃ/",example:"The air is fresh."},
+  {en:"Empty",zh:"空的",emoji:"🫙",phonetic:"/ˈempti/",example:"The bottle is empty."},
+  {en:"Full",zh:"满的",emoji:"🥛",phonetic:"/fʊl/",example:"The cup is full."},
+  {en:"Round",zh:"圆的",emoji:"🔵",phonetic:"/raʊnd/",example:"The ball is round."},
+  {en:"Sharp",zh:"锋利的",emoji:"🔪",phonetic:"/ʃɑːrp/",example:"The knife is sharp."},
+  {en:"Safe",zh:"安全的",emoji:"🔒",phonetic:"/seɪf/",example:"You are safe here."},
+
+  // 动词扩展 Verbs
+  {en:"Come",zh:"来",emoji:"🚶",phonetic:"/kʌm/",example:"Come here please."},
+  {en:"Go",zh:"去",emoji:"🚶",phonetic:"/ɡoʊ/",example:"Let's go to the park."},
+  {en:"See",zh:"看见",emoji:"👀",phonetic:"/siː/",example:"I can see the bird."},
+  {en:"Hear",zh:"听见",emoji:"👂",phonetic:"/hɪər/",example:"I can hear music."},
+  {en:"Feel",zh:"感觉",emoji:"🤚",phonetic:"/fiːl/",example:"I feel happy."},
+  {en:"Smell",zh:"闻",emoji:"👃",phonetic:"/smel/",example:"Smell the flower."},
+  {en:"Taste",zh:"尝",emoji:"👅",phonetic:"/teɪst/",example:"Taste the soup."},
+  {en:"Touch",zh:"摸",emoji:"🤚",phonetic:"/tʌtʃ/",example:"Touch the cat gently."},
+  {en:"Open",zh:"打开",emoji:"📂",phonetic:"/ˈoʊpən/",example:"Open the book."},
+  {en:"Close",zh:"关闭",emoji:"🔒",phonetic:"/kloʊz/",example:"Close the door."},
+  {en:"Start",zh:"开始",emoji:"▶️",phonetic:"/stɑːrt/",example:"Let's start."},
+  {en:"Stop",zh:"停止",emoji:"🛑",phonetic:"/stɒp/",example:"Stop running."},
+  {en:"Wait",zh:"等待",emoji:"⏳",phonetic:"/weɪt/",example:"Wait for me."},
+  {en:"Try",zh:"尝试",emoji:"💪",phonetic:"/traɪ/",example:"Try again."},
+  {en:"Find",zh:"找到",emoji:"🔍",phonetic:"/faɪnd/",example:"I found my toy."},
+  {en:"Lose",zh:"丢失",emoji:"😢",phonetic:"/luːz/",example:"I lost my pen."},
+  {en:"Buy",zh:"买",emoji:"🛒",phonetic:"/baɪ/",example:"I want to buy candy."},
+  {en:"Sell",zh:"卖",emoji:"🏷️",phonetic:"/sel/",example:"They sell fruits."},
+  {en:"Make",zh:"制作",emoji:"🔨",phonetic:"/meɪk/",example:"I make a cake."},
+  {en:"Take",zh:"拿/带走",emoji:"🤲",phonetic:"/teɪk/",example:"Take your bag."},
+  {en:"Bring",zh:"带来",emoji:"🎁",phonetic:"/brɪŋ/",example:"Bring your book."},
+  {en:"Push",zh:"推",emoji:"🫸",phonetic:"/pʊʃ/",example:"Push the door."},
+  {en:"Pull",zh:"拉",emoji:"🫷",phonetic:"/pʊl/",example:"Pull the rope."},
+  {en:"Drop",zh:"掉落",emoji:"📉",phonetic:"/drɒp/",example:"Don't drop the cup."},
+  {en:"Catch",zh:"抓住",emoji:"🤲",phonetic:"/kætʃ/",example:"Catch the ball."},
+  {en:"Throw",zh:"扔",emoji:"🤾",phonetic:"/θroʊ/",example:"Throw the ball."},
+  {en:"Carry",zh:"携带",emoji:"🎒",phonetic:"/ˈkæri/",example:"I carry my bag."},
+  {en:"Hold",zh:"握住",emoji:"🤝",phonetic:"/hoʊld/",example:"Hold my hand."},
+  {en:"Show",zh:"展示",emoji:"👆",phonetic:"/ʃoʊ/",example:"Show me your drawing."},
+  {en:"Tell",zh:"告诉",emoji:"💬",phonetic:"/tel/",example:"Tell me a story."},
+  {en:"Ask",zh:"问",emoji:"❓",phonetic:"/æsk/",example:"Ask a question."},
+  {en:"Answer",zh:"回答",emoji:"💬",phonetic:"/ˈænsər/",example:"Answer the question."},
+  {en:"Call",zh:"叫/打电话",emoji:"📞",phonetic:"/kɔːl/",example:"I call my mom."},
+  {en:"Learn",zh:"学习",emoji:"📚",phonetic:"/lɜːrn/",example:"I learn English."},
+  {en:"Teach",zh:"教",emoji:"👩‍🏫",phonetic:"/tiːtʃ/",example:"She teaches math."},
+  {en:"Know",zh:"知道",emoji:"💡",phonetic:"/noʊ/",example:"I know the answer."},
+  {en:"Forget",zh:"忘记",emoji:"🤔",phonetic:"/fərˈɡet/",example:"Don't forget your bag."},
+  {en:"Remember",zh:"记住",emoji:"💭",phonetic:"/rɪˈmembər/",example:"I remember you."},
+  {en:"Want",zh:"想要",emoji:"🙋",phonetic:"/wɒnt/",example:"I want a toy."},
+  {en:"Need",zh:"需要",emoji:"🆘",phonetic:"/niːd/",example:"I need help."},
+  {en:"Like",zh:"喜欢",emoji:"👍",phonetic:"/laɪk/",example:"I like ice cream."},
+  {en:"Hope",zh:"希望",emoji:"🌟",phonetic:"/hoʊp/",example:"I hope it rains."},
+  {en:"Dream",zh:"做梦/梦想",emoji:"💭",phonetic:"/driːm/",example:"I dream of flying."},
+  {en:"Grow",zh:"成长/种植",emoji:"🌱",phonetic:"/ɡroʊ/",example:"Plants grow fast."},
+  {en:"Live",zh:"生活/居住",emoji:"🏠",phonetic:"/lɪv/",example:"I live in a house."},
+  {en:"Work",zh:"工作",emoji:"💼",phonetic:"/wɜːrk/",example:"Dad goes to work."},
+  {en:"Sit",zh:"坐",emoji:"🪑",phonetic:"/sɪt/",example:"Sit down please."},
+  {en:"Stand",zh:"站",emoji:"🧍",phonetic:"/stænd/",example:"Stand up please."},
+  {en:"Turn",zh:"转弯/转身",emoji:"🔄",phonetic:"/tɜːrn/",example:"Turn around."},
+  {en:"Fall",zh:"跌倒/掉落",emoji:"🍂",phonetic:"/fɔːl/",example:"Leaves fall in autumn."},
+  {en:"Break",zh:"打破",emoji:"💔",phonetic:"/breɪk/",example:"Don't break the glass."},
+  {en:"Fix",zh:"修理",emoji:"🔧",phonetic:"/fɪks/",example:"I fix my toy."},
+  {en:"Build",zh:"建造",emoji:"🏗️",phonetic:"/bɪld/",example:"I build a tower."},
+  {en:"Cook",zh:"做饭",emoji:"🍳",phonetic:"/kʊk/",example:"I help mom cook."},
+  {en:"Wash",zh:"洗",emoji:"🫧",phonetic:"/wɒʃ/",example:"I wash my hands."},
+  {en:"Wear",zh:"穿",emoji:"👗",phonetic:"/weər/",example:"I wear a coat."},
+  {en:"Put on",zh:"穿上",emoji:"👕",phonetic:"/pʊt ɒn/",example:"Put on your shoes."},
+  {en:"Take off",zh:"脱下",emoji:"👟",phonetic:"/teɪk ɒf/",example:"Take off your hat."},
+
+  // 方位与介词 Prepositions
+  {en:"In",zh:"在...里面",emoji:"📦",phonetic:"/ɪn/",example:"The cat is in the box."},
+  {en:"On",zh:"在...上面",emoji:"📦",phonetic:"/ɒn/",example:"The book is on the table."},
+  {en:"Under",zh:"在...下面",emoji:"⬇️",phonetic:"/ˈʌndər/",example:"The ball is under the bed."},
+  {en:"Behind",zh:"在...后面",emoji:"🔙",phonetic:"/bɪˈhaɪnd/",example:"The dog is behind the tree."},
+  {en:"Next to",zh:"在...旁边",emoji:"👉",phonetic:"/nekst tuː/",example:"Sit next to me."},
+  {en:"Between",zh:"在...之间",emoji:"↔️",phonetic:"/bɪˈtwiːn/",example:"I sit between Tom and Amy."},
+  {en:"Above",zh:"在...上方",emoji:"⬆️",phonetic:"/əˈbʌv/",example:"The bird flies above us."},
+  {en:"Near",zh:"在...附近",emoji:"📍",phonetic:"/nɪər/",example:"The school is near here."},
+  {en:"Far",zh:"远的",emoji:"🗺️",phonetic:"/fɑːr/",example:"The moon is far away."},
+
+  // 代词 Pronouns
+  {en:"I",zh:"我",emoji:"🙋",phonetic:"/aɪ/",example:"I am happy."},
+  {en:"You",zh:"你/你们",emoji:"👉",phonetic:"/juː/",example:"You are my friend."},
+  {en:"He",zh:"他",emoji:"👨",phonetic:"/hiː/",example:"He is my brother."},
+  {en:"She",zh:"她",emoji:"👩",phonetic:"/ʃiː/",example:"She is my sister."},
+  {en:"It",zh:"它",emoji:"👉",phonetic:"/ɪt/",example:"It is a dog."},
+  {en:"We",zh:"我们",emoji:"👥",phonetic:"/wiː/",example:"We are friends."},
+  {en:"They",zh:"他们",emoji:"👥",phonetic:"/ðeɪ/",example:"They are playing."},
+  {en:"My",zh:"我的",emoji:"🤲",phonetic:"/maɪ/",example:"This is my book."},
+  {en:"Your",zh:"你的",emoji:"👉",phonetic:"/jʊər/",example:"Is this your pen?"},
+  {en:"His",zh:"他的",emoji:"👨",phonetic:"/hɪz/",example:"That is his bag."},
+  {en:"Her",zh:"她的",emoji:"👩",phonetic:"/hɜːr/",example:"This is her toy."},
+  {en:"Our",zh:"我们的",emoji:"🤝",phonetic:"/ˈaʊər/",example:"This is our school."},
+
+  // 疑问词 Question Words
+  {en:"What",zh:"什么",emoji:"❓",phonetic:"/wɒt/",example:"What is your name?"},
+  {en:"Where",zh:"在哪里",emoji:"📍",phonetic:"/weər/",example:"Where is my bag?"},
+  {en:"When",zh:"什么时候",emoji:"⏰",phonetic:"/wen/",example:"When is your birthday?"},
+  {en:"Why",zh:"为什么",emoji:"🤔",phonetic:"/waɪ/",example:"Why are you happy?"},
+  {en:"Who",zh:"谁",emoji:"🧑",phonetic:"/huː/",example:"Who is that?"},
+  {en:"How",zh:"怎样/如何",emoji:"❓",phonetic:"/haʊ/",example:"How are you?"},
+  {en:"Which",zh:"哪一个",emoji:"🤔",phonetic:"/wɪtʃ/",example:"Which one do you like?"},
+  {en:"How many",zh:"多少",emoji:"🔢",phonetic:"/haʊ ˈmeni/",example:"How many apples?"},
+
+  // 连词 & 副词 Conjunctions & Adverbs
+  {en:"And",zh:"和",emoji:"➕",phonetic:"/ænd/",example:"I like cats and dogs."},
+  {en:"But",zh:"但是",emoji:"🔄",phonetic:"/bʌt/",example:"I am small but strong."},
+  {en:"Or",zh:"或者",emoji:"🔀",phonetic:"/ɔːr/",example:"Tea or coffee?"},
+  {en:"Because",zh:"因为",emoji:"💡",phonetic:"/bɪˈkɒz/",example:"I am happy because it is sunny."},
+  {en:"Very",zh:"非常",emoji:"⭐",phonetic:"/ˈveri/",example:"I am very happy."},
+  {en:"Also",zh:"也",emoji:"➕",phonetic:"/ˈɔːlsoʊ/",example:"I also like reading."},
+  {en:"Too",zh:"也/太",emoji:"➕",phonetic:"/tuː/",example:"Me too!"},
+  {en:"Always",zh:"总是",emoji:"♾️",phonetic:"/ˈɔːlweɪz/",example:"I always brush my teeth."},
+  {en:"Never",zh:"从不",emoji:"🚫",phonetic:"/ˈnevər/",example:"I never lie."},
+  {en:"Sometimes",zh:"有时候",emoji:"🔄",phonetic:"/ˈsʌmtaɪmz/",example:"I sometimes walk to school."},
+  {en:"Often",zh:"经常",emoji:"🔄",phonetic:"/ˈɒfn/",example:"I often read books."},
+  {en:"Again",zh:"再一次",emoji:"🔁",phonetic:"/əˈɡen/",example:"Say it again please."},
+  {en:"Now",zh:"现在",emoji:"⏰",phonetic:"/naʊ/",example:"Let's play now."},
+  {en:"Here",zh:"这里",emoji:"📍",phonetic:"/hɪər/",example:"Come here."},
+  {en:"There",zh:"那里",emoji:"👉",phonetic:"/ðeər/",example:"Look over there."},
+  {en:"Soon",zh:"很快",emoji:"⏩",phonetic:"/suːn/",example:"I will be there soon."},
+  {en:"Together",zh:"一起",emoji:"🤝",phonetic:"/təˈɡeðər/",example:"Let's play together."},
+
+  // 健康 Health
+  {en:"Healthy",zh:"健康的",emoji:"💚",phonetic:"/ˈhelθi/",example:"I am healthy."},
+  {en:"Medicine",zh:"药",emoji:"💊",phonetic:"/ˈmedɪsɪn/",example:"Take your medicine."},
+  {en:"Pain",zh:"疼",emoji:"😣",phonetic:"/peɪn/",example:"I have a pain in my head."},
+  {en:"Rest",zh:"休息",emoji:"😴",phonetic:"/rest/",example:"Take a rest."},
+  {en:"Exercise",zh:"锻炼",emoji:"🏋️",phonetic:"/ˈeksərsaɪz/",example:"I exercise every day."},
+  {en:"Toilet",zh:"厕所",emoji:"🚽",phonetic:"/ˈtɔɪlɪt/",example:"I need to use the toilet."},
+
+  // 日常用品 Daily Items
+  {en:"Money",zh:"钱",emoji:"💰",phonetic:"/ˈmʌni/",example:"I save money."},
+  {en:"Gift",zh:"礼物",emoji:"🎁",phonetic:"/ɡɪft/",example:"I got a gift."},
+  {en:"Picture",zh:"图片",emoji:"🖼️",phonetic:"/ˈpɪktʃər/",example:"I drew a picture."},
+  {en:"Story",zh:"故事",emoji:"📖",phonetic:"/ˈstɔːri/",example:"Tell me a story."},
+  {en:"News",zh:"新闻",emoji:"📰",phonetic:"/njuːz/",example:"I hear the news."},
+  {en:"Problem",zh:"问题/难题",emoji:"❓",phonetic:"/ˈprɒbləm/",example:"I have a problem."},
+  {en:"Idea",zh:"主意",emoji:"💡",phonetic:"/aɪˈdiːə/",example:"That is a good idea."},
+  {en:"Way",zh:"路/方法",emoji:"🛤️",phonetic:"/weɪ/",example:"This is the way."},
+  {en:"Thing",zh:"东西",emoji:"📦",phonetic:"/θɪŋ/",example:"What is that thing?"},
+  {en:"Box",zh:"盒子",emoji:"📦",phonetic:"/bɒks/",example:"The toy is in the box."},
+  {en:"Line",zh:"线",emoji:"📏",phonetic:"/laɪn/",example:"Draw a line."},
+  {en:"Map",zh:"地图",emoji:"🗺️",phonetic:"/mæp/",example:"Look at the map."},
+  {en:"Name",zh:"名字",emoji:"🏷️",phonetic:"/neɪm/",example:"My name is Tom."},
+  {en:"Number",zh:"数字",emoji:"🔢",phonetic:"/ˈnʌmbər/",example:"What is the number?"},
+  {en:"Letter",zh:"字母",emoji:"🔤",phonetic:"/ˈletər/",example:"The letter A is first."},
+  {en:"Word",zh:"单词",emoji:"📝",phonetic:"/wɜːrd/",example:"Learn a new word."},
+  {en:"Color",zh:"颜色",emoji:"🎨",phonetic:"/ˈkʌlər/",example:"What color is it?"},
+  {en:"Size",zh:"尺寸",emoji:"📐",phonetic:"/saɪz/",example:"What size do you need?"},
+  {en:"Side",zh:"边/面",emoji:"↔️",phonetic:"/saɪd/",example:"Which side do you want?"},
+  {en:"Top",zh:"顶部",emoji:"⬆️",phonetic:"/tɒp/",example:"The book is on top."},
+  {en:"Bottom",zh:"底部",emoji:"⬇️",phonetic:"/ˈbɒtəm/",example:"The dog is at the bottom."},
+  {en:"Front",zh:"前面",emoji:"👆",phonetic:"/frʌnt/",example:"Stand in front."},
+  {en:"Back",zh:"后面/背部",emoji:"🔙",phonetic:"/bæk/",example:"Turn back please."},
+  {en:"Middle",zh:"中间",emoji:"⏺️",phonetic:"/ˈmɪdl/",example:"Sit in the middle."},
+  {en:"Corner",zh:"角落",emoji:"📐",phonetic:"/ˈkɔːrnər/",example:"Stand in the corner."},
+  {en:"Edge",zh:"边缘",emoji:"📏",phonetic:"/edʒ/",example:"The edge is sharp."},
+  {en:"Piece",zh:"片/块",emoji:"🧩",phonetic:"/piːs/",example:"I want a piece of cake."},
+  {en:"Part",zh:"部分",emoji:"🧩",phonetic:"/pɑːrt/",example:"This is part of it."},
+  {en:"Point",zh:"点",emoji:"📍",phonetic:"/pɔɪnt/",example:"Point to the picture."},
+  {en:"Step",zh:"步骤/台阶",emoji:"🪜",phonetic:"/step/",example:"Take a step forward."},
+  {en:"Trip",zh:"旅行",emoji:"✈️",phonetic:"/trɪp/",example:"I went on a trip."},
+  {en:"Party",zh:"派对",emoji:"🎉",phonetic:"/ˈpɑːrti/",example:"I love parties."},
+  {en:"Birthday",zh:"生日",emoji:"🎂",phonetic:"/ˈbɜːrθdeɪ/",example:"Happy birthday!"},
+  {en:"Holiday",zh:"假期",emoji:"🏖️",phonetic:"/ˈhɒlədeɪ/",example:"I love holidays."},
+  {en:"World",zh:"世界",emoji:"🌍",phonetic:"/wɜːrld/",example:"The world is big."},
+  {en:"Country",zh:"国家",emoji:"🌍",phonetic:"/ˈkʌntri/",example:"I live in this country."},
+  {en:"City",zh:"城市",emoji:"🏙️",phonetic:"/ˈsɪti/",example:"The city is big."},
+  {en:"Street",zh:"街道",emoji:"🛤️",phonetic:"/striːt/",example:"I walk on the street."},
+  {en:"Road",zh:"路",emoji:"🛣️",phonetic:"/roʊd/",example:"The road is long."},
+  {en:"Bridge",zh:"桥",emoji:"🌉",phonetic:"/brɪdʒ/",example:"We cross the bridge."},
+  {en:"House",zh:"房子",emoji:"🏠",phonetic:"/haʊs/",example:"This is my house."},
+  {en:"Air",zh:"空气",emoji:"🌬️",phonetic:"/eər/",example:"The air is fresh."},
+  {en:"Earth",zh:"地球",emoji:"🌍",phonetic:"/ɜːrθ/",example:"The Earth is round."},
+  {en:"Sand",zh:"沙子",emoji:"🏖️",phonetic:"/sænd/",example:"I play with sand."},
+  {en:"Stone",zh:"石头",emoji:"🪨",phonetic:"/stoʊn/",example:"The stone is heavy."},
+  {en:"Fire",zh:"火",emoji:"🔥",phonetic:"/faɪər/",example:"Don't touch the fire."},
+  {en:"Smoke",zh:"烟",emoji:"💨",phonetic:"/smoʊk/",example:"I see smoke."},
+  {en:"Shadow",zh:"影子",emoji:"👤",phonetic:"/ˈʃædoʊ/",example:"I see my shadow."},
+  {en:"Noise",zh:"噪音",emoji:"📢",phonetic:"/nɔɪz/",example:"That is too much noise."},
+  {en:"Smile",zh:"微笑",emoji:"😊",phonetic:"/smaɪl/",example:"She gave me a smile."},
+  {en:"Hug",zh:"拥抱",emoji:"🤗",phonetic:"/hʌɡ/",example:"I give you a hug."},
+  {en:"Kiss",zh:"亲吻",emoji:"😘",phonetic:"/kɪs/",example:"Mom gives me a kiss."},
+  {en:"Wave",zh:"挥手",emoji:"👋",phonetic:"/weɪv/",example:"I wave goodbye."},
+  {en:"Nod",zh:"点头",emoji:"👍",phonetic:"/nɒd/",example:"I nod my head."},
+  {en:"Shake",zh:"摇头/摇晃",emoji:"🤝",phonetic:"/ʃeɪk/",example:"We shake hands."},
+  {en:"Clap",zh:"拍手",emoji:"👏",phonetic:"/klæp/",example:"Clap your hands."},
+  {en:"Whistle",zh:"吹口哨",emoji:"😗",phonetic:"/ˈwɪsl/",example:"I can whistle."},
+  {en:"Whisper",zh:"低声说话",emoji:"🤫",phonetic:"/ˈwɪspər/",example:"She whispers to me."},
+  {en:"Shout",zh:"喊叫",emoji:"📣",phonetic:"/ʃaʊt/",example:"Don't shout please."},
+  {en:"Pray",zh:"祈祷",emoji:"🙏",phonetic:"/preɪ/",example:"I pray before sleep."},
+  {en:"Thank",zh:"感谢",emoji:"🙏",phonetic:"/θæŋk/",example:"Thank you very much."},
+  {en:"Sorry",zh:"对不起",emoji:"😔",phonetic:"/ˈsɒri/",example:"I am sorry."},
+  {en:"Welcome",zh:"欢迎",emoji:"🤗",phonetic:"/ˈwelkəm/",example:"Welcome to my home."},
+  {en:"Please",zh:"请",emoji:"🙏",phonetic:"/pliːz/",example:"Please sit down."},
+  {en:"Hello",zh:"你好",emoji:"👋",phonetic:"/həˈloʊ/",example:"Hello, how are you?"},
+  {en:"Goodbye",zh:"再见",emoji:"👋",phonetic:"/ɡʊdˈbaɪ/",example:"Goodbye, see you later."},
+  {en:"Yes",zh:"是的",emoji:"✅",phonetic:"/jes/",example:"Yes, I can."},
+  {en:"No",zh:"不",emoji:"❌",phonetic:"/noʊ/",example:"No, thank you."},
+  {en:"OK",zh:"好的",emoji:"👌",phonetic:"/ˌoʊˈkeɪ/",example:"That's OK."},
+  {en:"Maybe",zh:"也许",emoji:"🤔",phonetic:"/ˈmeɪbiː/",example:"Maybe tomorrow."},
+  {en:"Sure",zh:"当然",emoji:"😊",phonetic:"/ʃʊər/",example:"Sure, I can help."},
+  {en:"Easy",zh:"容易的",emoji:"😊",phonetic:"/ˈiːzi/",example:"This is easy."},
+  {en:"Difficult",zh:"困难的",emoji:"😓",phonetic:"/ˈdɪfɪkəlt/",example:"This is difficult."},
+  {en:"Right",zh:"对的/右边",emoji:"✅",phonetic:"/raɪt/",example:"You are right."},
+  {en:"Wrong",zh:"错的",emoji:"❌",phonetic:"/rɒŋ/",example:"That is wrong."},
+  {en:"Same",zh:"相同的",emoji:"🔄",phonetic:"/seɪm/",example:"We are the same age."},
+  {en:"Different",zh:"不同的",emoji:"🔀",phonetic:"/ˈdɪfrənt/",example:"We are different."},
+  {en:"Real",zh:"真实的",emoji:"✅",phonetic:"/riːəl/",example:"Is this real?"},
+  {en:"Free",zh:"免费的/自由的",emoji:"🆓",phonetic:"/friː/",example:"The park is free."},
+  {en:"Important",zh:"重要的",emoji:"⭐",phonetic:"/ɪmˈpɔːrtənt/",example:"This is important."},
+  {en:"Special",zh:"特别的",emoji:"✨",phonetic:"/ˈspeʃəl/",example:"Today is special."},
+  {en:"Magic",zh:"魔法",emoji:"🪄",phonetic:"/ˈmædʒɪk/",example:"It is like magic."},
+  {en:"Fun",zh:"有趣的",emoji:"🎉",phonetic:"/fʌn/",example:"That was fun!"},
+  {en:"Boring",zh:"无聊的",emoji:"😑",phonetic:"/ˈbɔːrɪŋ/",example:"This is boring."},
+  {en:"Strange",zh:"奇怪的",emoji:"🤨",phonetic:"/streɪndʒ/",example:"That is strange."},
+  {en:"Perfect",zh:"完美的",emoji:"💯",phonetic:"/ˈpɜːrfɪkt/",example:"This is perfect!"},
+  {en:"Enough",zh:"足够的",emoji:"👌",phonetic:"/ɪˈnʌf/",example:"That is enough."},
+  {en:"Almost",zh:"几乎",emoji:"⏩",phonetic:"/ˈɔːlmoʊst/",example:"I am almost done."},
+  {en:"Already",zh:"已经",emoji:"✅",phonetic:"/ɔːlˈredi/",example:"I already ate."},
+  {en:"Still",zh:"仍然",emoji:"⏳",phonetic:"/stɪl/",example:"I am still hungry."},
+  {en:"Only",zh:"只有",emoji:"👆",phonetic:"/ˈoʊnli/",example:"I only have one."},
+  {en:"Every",zh:"每个",emoji:"🔄",phonetic:"/ˈevri/",example:"I go every day."},
+  {en:"Some",zh:"一些",emoji:"📦",phonetic:"/sʌm/",example:"I have some candy."},
+  {en:"Any",zh:"任何",emoji:"❓",phonetic:"/ˈeni/",example:"Do you have any questions?"},
+  {en:"All",zh:"全部",emoji:"💯",phonetic:"/ɔːl/",example:"I eat all of it."},
+  {en:"Each",zh:"每一个",emoji:"📋",phonetic:"/iːtʃ/",example:"Each child gets a gift."},
+  {en:"Both",zh:"两个都",emoji:"✌️",phonetic:"/boʊθ/",example:"I like both."},
+  {en:"More",zh:"更多",emoji:"➕",phonetic:"/mɔːr/",example:"I want more."},
+  {en:"Less",zh:"更少",emoji:"➖",phonetic:"/les/",example:"Eat less candy."},
+  {en:"Most",zh:"最多的",emoji:"🏆",phonetic:"/moʊst/",example:"I eat the most."},
+  {en:"Best",zh:"最好的",emoji:"🥇",phonetic:"/best/",example:"You are the best!"},
+  {en:"Worst",zh:"最差的",emoji:"😢",phonetic:"/wɜːrst/",example:"This is the worst."},
+  {en:"Better",zh:"更好的",emoji:"👍",phonetic:"/ˈbetər/",example:"I feel better now."},
+  {en:"Worse",zh:"更差的",emoji:"👎",phonetic:"/wɜːrs/",example:"The weather is worse today."},
+];
+
+let currentIndex = 0;
+let cardList = [...words];
+
+function updateCard() {
+  const w = cardList[currentIndex];
+  document.getElementById('emoji').textContent = w.emoji;
+  document.getElementById('word').textContent = w.en;
+  document.getElementById('phonetic').textContent = w.phonetic;
+  document.getElementById('chinese').textContent = w.zh;
+  document.getElementById('englishBack').textContent = w.en;
+  document.getElementById('example').textContent = `"${w.example}"`;
+  document.getElementById('counter').textContent = `${currentIndex + 1} / ${cardList.length}`;
+  document.getElementById('progress').style.width = ((currentIndex + 1) / cardList.length * 100) + '%';
+  // Reset flip state
+  document.getElementById('card').classList.remove('flipped');
+}
+
+function flipCard() {
+  document.getElementById('card').classList.toggle('flipped');
+}
+
+function nextCard() {
+  if (currentMode === 'learning') {
+    // Record as seen and schedule for review
+    const reviewData = loadReviewData();
+    const word = words[learningState.currentWordIdx];
+    recordReview(word.en, true, reviewData);
+    advanceLearningCard();
+    return;
+  }
+  currentIndex = (currentIndex + 1) % cardList.length;
+  updateCard();
+}
+
+function shuffleCards() {
+  cardList = shuffleArray(cardList);
+  currentIndex = 0;
+  updateCard();
+}
+
+function speakWord() {
+  window.speechSynthesis.cancel();
+  const w = (currentMode === 'learning') ? words[learningState.currentWordIdx]
+    : (currentMode === 'test') ? words[testState.questions[testState.currentIndex]]
+    : cardList[currentIndex];
+  if (!w) return;
+  const u = new SpeechSynthesisUtterance(w.en);
+  u.lang = 'en-US'; u.rate = 0.85;
+  window.speechSynthesis.speak(u);
+}
+
+function speakExample() {
+  window.speechSynthesis.cancel();
+  const w = (currentMode === 'learning') ? words[learningState.currentWordIdx]
+    : (currentMode === 'test') ? words[testState.questions[testState.currentIndex]]
+    : cardList[currentIndex];
+  if (!w) return;
+  const u = new SpeechSynthesisUtterance(w.example);
+  u.lang = 'en-US'; u.rate = 0.85;
+  window.speechSynthesis.speak(u);
+}
+
+// === Constants ===
+const EBBINGHAUS_INTERVALS = [1, 5, 15, 30, 60, 240, 480, 1440, 2880, 5760, 10080, 20160];
+const STORAGE_KEY = 'flashcard_data_v1';
+const TEST_WORD_COUNT = 50;
+const MOTIVATIONAL_TIERS = [
+  { min: 90, emoji: '🌟', title: '测试完成！', text: '太棒了！你是英语小天才！' },
+  { min: 70, emoji: '💪', title: '测试完成！', text: '做得很好！继续加油！' },
+  { min: 50, emoji: '📚', title: '继续加油！', text: '还不错，多练习就会更好！' },
+  { min: 0,  emoji: '🌱', title: '继续加油！', text: '别灰心，慢慢来，每天进步一点点！' },
+];
+
+// === State ===
+let currentMode = 'learning';
+
+let learningState = {
+  newQueue: [],
+  reviewQueue: [],
+  seenCount: 0,
+  currentWordIdx: null,
+};
+
+let testState = {
+  questions: [],
+  currentIndex: 0,
+  knownWords: [],
+  unknownWords: [],
+};
+
+// === Shuffle Helper ===
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// === Persistence ===
+function loadReviewData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw).reviewData || {};
+  } catch (e) { console.warn('Load review data failed:', e); }
+  return {};
+}
+
+function saveReviewData(data) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    existing.reviewData = data;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+  } catch (e) { console.warn('Save review data failed:', e); }
+}
+
+function saveTestHistory(result) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (!existing.testHistory) existing.testHistory = [];
+    existing.testHistory.push({ date: Date.now(), score: result.score, total: result.total, wrongWords: result.wrongWords });
+    if (existing.testHistory.length > 20) existing.testHistory = existing.testHistory.slice(-20);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+  } catch (e) { console.warn('Save test history failed:', e); }
+}
+
+// === Ebbinghaus Scheduling ===
+function getNextReviewTime(stage) {
+  const minutes = EBBINGHAUS_INTERVALS[Math.min(stage, EBBINGHAUS_INTERVALS.length - 1)];
+  return Date.now() + minutes * 60 * 1000;
+}
+
+function recordReview(wordEn, known, reviewData) {
+  let data = reviewData[wordEn] || { stage: 0, lastReview: 0, nextReview: 0 };
+  data.stage = known ? Math.min(data.stage + 1, EBBINGHAUS_INTERVALS.length - 1) : 0;
+  data.lastReview = Date.now();
+  data.nextReview = getNextReviewTime(data.stage);
+  reviewData[wordEn] = data;
+  saveReviewData(reviewData);
+  return data;
+}
+
+// === Learning Mode ===
+function initLearningMode() {
+  const reviewData = loadReviewData();
+  const now = Date.now();
+  let dueForReview = [];
+  let newWords = [];
+
+  for (let i = 0; i < words.length; i++) {
+    const en = words[i].en;
+    const data = reviewData[en];
+    if (data && now >= data.nextReview) {
+      dueForReview.push({ index: i, stage: data.stage });
+    } else if (!data) {
+      newWords.push(i);
+    }
+  }
+
+  learningState = {
+    newQueue: shuffleArray(newWords),
+    reviewQueue: shuffleArray(dueForReview),
+    seenCount: 0,
+    currentWordIdx: null,
+  };
+}
+
+function getNextLearningWord() {
+  if (learningState.reviewQueue.length > 0) return learningState.reviewQueue.shift().index;
+  if (learningState.newQueue.length > 0) return learningState.newQueue.shift();
+  return null;
+}
+
+function advanceLearningCard() {
+  const nextIdx = getNextLearningWord();
+  if (nextIdx === null) {
+    showScreen('learningComplete');
+    document.getElementById('learningCompleteText').textContent =
+      `你已完成全部 ${words.length} 个单词的学习，继续加油！`;
+    return;
+  }
+  learningState.currentWordIdx = nextIdx;
+  showLearningCard(nextIdx);
+}
+
+function showLearningCard(idx) {
+  const w = words[idx];
+  document.getElementById('emoji').textContent = w.emoji;
+  document.getElementById('word').textContent = w.en;
+  document.getElementById('phonetic').textContent = w.phonetic;
+  document.getElementById('chinese').textContent = w.zh;
+  document.getElementById('englishBack').textContent = w.en;
+  document.getElementById('example').textContent = `"${w.example}"`;
+  document.getElementById('card').classList.remove('flipped');
+
+  learningState.seenCount++;
+  document.getElementById('counter').textContent = `已学: ${learningState.seenCount} / ${words.length}`;
+  document.getElementById('reviewCount').textContent = learningState.reviewQueue.length;
+  document.getElementById('progress').style.width = (learningState.seenCount / words.length * 100) + '%';
+
+  speakWord();
+}
+
+// === Test Mode ===
+function initTestMode() {
+  showScreen('testWelcome');
+}
+
+function startTest() {
+  const shuffled = shuffleArray(Array.from({ length: words.length }, (_, i) => i));
+  const selected = shuffled.slice(0, Math.min(TEST_WORD_COUNT, words.length));
+
+  testState = { questions: selected, currentIndex: 0, knownWords: [], unknownWords: [] };
+  showScreen('testQuiz');
+  showTestQuestion();
+}
+
+function showTestQuestion() {
+  const wordIdx = testState.questions[testState.currentIndex];
+  const w = words[wordIdx];
+  document.getElementById('emoji').textContent = w.emoji;
+  document.getElementById('word').textContent = w.en;
+  document.getElementById('phonetic').textContent = w.phonetic;
+  document.getElementById('chinese').textContent = w.zh;
+  document.getElementById('englishBack').textContent = w.en;
+  document.getElementById('example').textContent = `"${w.example}"`;
+  document.getElementById('card').classList.remove('flipped');
+
+  document.getElementById('counter').textContent = `${testState.currentIndex + 1} / ${testState.questions.length}`;
+  document.getElementById('progress').style.width = (testState.currentIndex / testState.questions.length * 100) + '%';
+
+  speakWord();
+}
+
+function handleTestAssessment(known) {
+  const wordIdx = testState.questions[testState.currentIndex];
+  if (known) testState.knownWords.push(wordIdx);
+  else {
+    testState.unknownWords.push(wordIdx);
+    // 加入待复习队列
+    const reviewData = loadReviewData();
+    recordReview(words[wordIdx].en, false, reviewData);
+  }
+
+  testState.currentIndex++;
+  if (testState.currentIndex >= testState.questions.length) {
+    showTestResults();
+  } else {
+    showTestQuestion();
+  }
+}
+
+function showTestResults() {
+  const total = testState.questions.length;
+  const known = testState.knownWords.length;
+  const pct = Math.round((known / total) * 100);
+
+  let tier = MOTIVATIONAL_TIERS[MOTIVATIONAL_TIERS.length - 1];
+  for (const t of MOTIVATIONAL_TIERS) { if (pct >= t.min) { tier = t; break; } }
+
+  document.getElementById('resultEmoji').textContent = tier.emoji;
+  document.getElementById('resultTitle').textContent = tier.title;
+  document.getElementById('scoreDisplay').textContent = `${known} / ${total} (${pct}%)`;
+  document.getElementById('motivationalText').textContent = tier.text;
+
+  const wrongSection = document.getElementById('wrongWordsSection');
+  const wrongList = document.getElementById('wrongWordsList');
+
+  if (testState.unknownWords.length > 0) {
+    wrongSection.style.display = 'block';
+    wrongList.innerHTML = testState.unknownWords.map(idx => {
+      const w = words[idx];
+      return `<div class="wrong-word-item"><span class="ww-emoji">${w.emoji}</span><span class="ww-en">${w.en}</span><span class="ww-zh">${w.zh}</span></div>`;
+    }).join('');
+  } else {
+    wrongSection.style.display = 'none';
+  }
+
+  document.getElementById('progress').style.width = '100%';
+  document.getElementById('counter').textContent = '测试完成';
+  showScreen('testResults');
+
+  saveTestHistory({ score: known, total, wrongWords: testState.unknownWords.map(idx => words[idx].en) });
+}
+
+// === Screen Management ===
+function showScreen(name) {
+  const cardContainer = document.getElementById('cardContainer');
+  const assessmentBtns = document.getElementById('assessmentBtns');
+  const hintText = document.getElementById('hintText');
+  const btnNext = document.getElementById('btnNext');
+  const reviewQueue = document.getElementById('reviewQueue');
+  const shuffleBtn = document.getElementById('shuffleBtn');
+  const testWelcome = document.getElementById('testWelcome');
+  const testResults = document.getElementById('testResults');
+  const learningComplete = document.getElementById('learningComplete');
+
+  // Hide all special screens
+  testWelcome.classList.add('hidden');
+  testResults.classList.add('hidden');
+  learningComplete.classList.add('hidden');
+
+  // Default visible states
+  cardContainer.style.display = '';
+  reviewQueue.style.display = '';
+  shuffleBtn.classList.remove('hidden');
+
+  switch (name) {
+    case 'main':
+      assessmentBtns.classList.add('hidden');
+      hintText.style.display = '';
+      btnNext.style.display = '';
+      reviewQueue.style.display = 'none';
+      break;
+    case 'learning':
+      assessmentBtns.classList.add('hidden');
+      hintText.style.display = '';
+      btnNext.style.display = '';
+      reviewQueue.style.display = '';
+      shuffleBtn.classList.add('hidden');
+      break;
+    case 'testQuiz':
+      assessmentBtns.classList.remove('hidden');
+      hintText.style.display = 'none';
+      btnNext.style.display = 'none';
+      shuffleBtn.classList.add('hidden');
+      break;
+    case 'testWelcome':
+    case 'testResults':
+    case 'learningComplete':
+      cardContainer.style.display = 'none';
+      assessmentBtns.classList.add('hidden');
+      hintText.style.display = 'none';
+      btnNext.style.display = 'none';
+      reviewQueue.style.display = 'none';
+      shuffleBtn.classList.add('hidden');
+      break;
+  }
+
+  // Show specific screen
+  if (name === 'testWelcome') testWelcome.classList.remove('hidden');
+  if (name === 'testResults') testResults.classList.remove('hidden');
+  if (name === 'learningComplete') learningComplete.classList.remove('hidden');
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('tabLearning').classList.toggle('active', mode === 'learning');
+  document.getElementById('tabTest').classList.toggle('active', mode === 'test');
+
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    data.flashcardMode = mode;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {}
+
+  if (mode === 'learning') {
+    initLearningMode();
+    showScreen('learning');
+    advanceLearningCard();
+  } else if (mode === 'test') {
+    initTestMode();
+  }
+}
+
+function restartLearning() {
+  localStorage.removeItem(STORAGE_KEY);
+  switchMode('learning');
+}
+
+// === Assessment (Test Mode Only) ===
+function assessWord(result) {
+  if (currentMode === 'test') handleTestAssessment(result === 'know');
+}
+
+// === Keyboard Support ===
+document.addEventListener('keydown', (e) => {
+  if (currentMode === 'learning') {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipCard(); }
+    if (e.key === 'ArrowRight' || e.key === 'n') nextCard();
+    if (e.key === 'p') speakWord();
+  } else if (currentMode === 'test') {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      if (!document.getElementById('card').classList.contains('flipped')) flipCard();
+      else assessWord('know');
+    }
+    if (e.key === 'k' || e.key === 'ArrowRight') assessWord('know');
+    if (e.key === 'u' || e.key === 'ArrowLeft') assessWord('dontknow');
+    if (e.key === 'p') speakWord();
+  } else {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipCard(); }
+    if (e.key === 'ArrowRight' || e.key === 'n') nextCard();
+    if (e.key === 'p') speakWord();
+  }
+});
+
+// === Initialization ===
+(function init() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (data.flashcardMode === 'test') {
+      switchMode('test');
+    } else {
+      switchMode('learning');
+    }
+  } catch (e) {
+    switchMode('learning');
+  }
+})();
+</script>
+</body>
+</html>
