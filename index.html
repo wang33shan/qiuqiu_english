@@ -1168,9 +1168,11 @@ let voiceChecked = false;
 
 // Load available voices and pick an English one
 function loadVoices() {
-  const voices = window.speechSynthesis.getVoices();
-  enVoice = voices.find(v => v.lang.startsWith('en')) || null;
-
+  var voices = window.speechSynthesis.getVoices();
+  enVoice = null;
+  for (var i = 0; i < voices.length; i++) {
+    if (voices[i].lang.indexOf('en') === 0) { enVoice = voices[i]; break; }
+  }
   if (!voiceChecked && voices.length > 0) {
     voiceChecked = true;
     if (!enVoice) {
@@ -1181,59 +1183,49 @@ function loadVoices() {
 
 // Show toast notification
 function showToast(msg) {
-  let toast = document.getElementById('voiceToast');
+  var toast = document.getElementById('voiceToast');
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'voiceToast';
-    Object.assign(toast.style, {
-      position: 'fixed', bottom: '120px', left: '50%', transform: 'translateX(-50%)',
-      background: '#fff3cd', color: '#856404', padding: '12px 20px', borderRadius: '12px',
-      fontSize: '14px', textAlign: 'center', maxWidth: '90%', zIndex: '9999',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.15)', lineHeight: '1.5'
-    });
+    toast.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#fff3cd;color:#856404;padding:12px 20px;border-radius:12px;font-size:14px;text-align:center;max-width:90%;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);line-height:1.5;';
     document.body.appendChild(toast);
-    // Auto-hide after 8 seconds
-    setTimeout(() => { if (toast) toast.style.display = 'none'; }, 8000);
+    setTimeout(function() { toast.style.display = 'none'; }, 8000);
   }
   toast.innerHTML = msg;
   toast.style.display = 'block';
 }
 
-// Voices load asynchronously on some browsers
-window.speechSynthesis.onvoiceschanged = loadVoices;
-// Some browsers need a delay
-setTimeout(loadVoices, 100);
-setTimeout(loadVoices, 1000);
+// Voices load asynchronously
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+  setTimeout(loadVoices, 500);
+  setTimeout(loadVoices, 2000);
+}
 
 function speakWord() {
-  if (!audioUnlocked) return;
-  if (!window.speechSynthesis) return;
-  if (!enVoice) return;
+  if (!audioUnlocked || !window.speechSynthesis || !enVoice) return;
   window.speechSynthesis.cancel();
-  const w = (currentMode === 'learning') ? words[learningState.currentWordIdx]
-    : (currentMode === 'test') ? words[testState.questions[testState.currentIndex]]
-    : cardList[currentIndex];
+  var w = null;
+  if (currentMode === 'learning') w = words[learningState.currentWordIdx];
+  else if (currentMode === 'test') w = words[testState.questions[testState.currentIndex]];
+  else w = cardList[currentIndex];
   if (!w) return;
-  const u = new SpeechSynthesisUtterance(w.en);
-  u.lang = 'en-US';
-  u.rate = 0.85;
-  u.voice = enVoice;
+  var u = new SpeechSynthesisUtterance(w.en);
+  u.lang = 'en-US'; u.rate = 0.85; u.voice = enVoice;
   window.speechSynthesis.speak(u);
 }
 
 function speakExample() {
-  if (!audioUnlocked) return;
-  if (!window.speechSynthesis) return;
-  if (!enVoice) return;
+  if (!audioUnlocked || !window.speechSynthesis || !enVoice) return;
   window.speechSynthesis.cancel();
-  const w = (currentMode === 'learning') ? words[learningState.currentWordIdx]
-    : (currentMode === 'test') ? words[testState.questions[testState.currentIndex]]
-    : cardList[currentIndex];
+  var w = null;
+  if (currentMode === 'learning') w = words[learningState.currentWordIdx];
+  else if (currentMode === 'test') w = words[testState.questions[testState.currentIndex]];
+  else w = cardList[currentIndex];
   if (!w) return;
-  const u = new SpeechSynthesisUtterance(w.example);
-  u.lang = 'en-US';
-  u.rate = 0.85;
-  u.voice = enVoice;
+  var u = new SpeechSynthesisUtterance(w.example);
+  u.lang = 'en-US'; u.rate = 0.85; u.voice = enVoice;
   window.speechSynthesis.speak(u);
 }
 
@@ -1523,8 +1515,10 @@ function showScreen(name) {
 
 function switchMode(mode) {
   currentMode = mode;
-  document.getElementById('tabLearning').classList.toggle('active', mode === 'learning');
-  document.getElementById('tabTest').classList.toggle('active', mode === 'test');
+  var tabLearning = document.getElementById('tabLearning');
+  var tabTest = document.getElementById('tabTest');
+  tabLearning.className = 'mode-tab' + (mode === 'learning' ? ' active' : '');
+  tabTest.className = 'mode-tab' + (mode === 'test' ? ' active' : '');
 
   try {
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -1575,24 +1569,27 @@ document.addEventListener('keydown', (e) => {
 
 // === Initialization ===
 (function init() {
-  document.getElementById('startScreen').addEventListener('click', function start() {
-    audioUnlocked = true;
-    document.getElementById('startScreen').style.display = 'none';
-    // Unlock audio with a silent utterance
-    const u = new SpeechSynthesisUtterance('');
-    window.speechSynthesis.speak(u);
+  var startEl = document.getElementById('startScreen');
+  var started = false;
+  function onStart() {
+    if (started) return;
+    started = true;
+    startEl.style.display = 'none';
     try {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      if (data.flashcardMode === 'test') {
-        switchMode('test');
-      } else {
-        switchMode('learning');
-      }
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance('');
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+    try {
+      var data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      switchMode(data.flashcardMode === 'test' ? 'test' : 'learning');
     } catch (e) {
       switchMode('learning');
     }
-    document.removeEventListener('click', start);
-  }, { once: true });
+  }
+  // Use inline onclick for max compatibility with older/mobile browsers
+  startEl.onclick = function() { onStart(); };
+  startEl.ontouchend = function(e) { e.preventDefault(); onStart(); };
 })();
 </script>
 </body>
