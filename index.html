@@ -1163,28 +1163,77 @@ function shuffleCards() {
 }
 
 let audioUnlocked = false;
+let enVoice = null;
+let voiceChecked = false;
+
+// Load available voices and pick an English one
+function loadVoices() {
+  const voices = window.speechSynthesis.getVoices();
+  enVoice = voices.find(v => v.lang.startsWith('en')) || null;
+
+  if (!voiceChecked && voices.length > 0) {
+    voiceChecked = true;
+    if (!enVoice) {
+      showToast('⚠️ 未检测到英文发音引擎，无法朗读。<br>请在设置中安装 Google 文字转语音，并下载英文语音包。');
+    }
+  }
+}
+
+// Show toast notification
+function showToast(msg) {
+  let toast = document.getElementById('voiceToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'voiceToast';
+    Object.assign(toast.style, {
+      position: 'fixed', bottom: '120px', left: '50%', transform: 'translateX(-50%)',
+      background: '#fff3cd', color: '#856404', padding: '12px 20px', borderRadius: '12px',
+      fontSize: '14px', textAlign: 'center', maxWidth: '90%', zIndex: '9999',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.15)', lineHeight: '1.5'
+    });
+    document.body.appendChild(toast);
+    // Auto-hide after 8 seconds
+    setTimeout(() => { if (toast) toast.style.display = 'none'; }, 8000);
+  }
+  toast.innerHTML = msg;
+  toast.style.display = 'block';
+}
+
+// Voices load asynchronously on some browsers
+window.speechSynthesis.onvoiceschanged = loadVoices;
+// Some browsers need a delay
+setTimeout(loadVoices, 100);
+setTimeout(loadVoices, 1000);
 
 function speakWord() {
   if (!audioUnlocked) return;
+  if (!window.speechSynthesis) return;
+  if (!enVoice) return;
   window.speechSynthesis.cancel();
   const w = (currentMode === 'learning') ? words[learningState.currentWordIdx]
     : (currentMode === 'test') ? words[testState.questions[testState.currentIndex]]
     : cardList[currentIndex];
   if (!w) return;
   const u = new SpeechSynthesisUtterance(w.en);
-  u.lang = 'en-US'; u.rate = 0.85;
+  u.lang = 'en-US';
+  u.rate = 0.85;
+  u.voice = enVoice;
   window.speechSynthesis.speak(u);
 }
 
 function speakExample() {
   if (!audioUnlocked) return;
+  if (!window.speechSynthesis) return;
+  if (!enVoice) return;
   window.speechSynthesis.cancel();
   const w = (currentMode === 'learning') ? words[learningState.currentWordIdx]
     : (currentMode === 'test') ? words[testState.questions[testState.currentIndex]]
     : cardList[currentIndex];
   if (!w) return;
   const u = new SpeechSynthesisUtterance(w.example);
-  u.lang = 'en-US'; u.rate = 0.85;
+  u.lang = 'en-US';
+  u.rate = 0.85;
+  u.voice = enVoice;
   window.speechSynthesis.speak(u);
 }
 
