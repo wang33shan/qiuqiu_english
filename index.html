@@ -92,9 +92,8 @@
 
   .card-back .speak-btn { background: rgba(255,255,255,0.2); }
   .card-back .speak-btn:active { background: rgba(255,255,255,0.35); }
-  .card-back .card-chinese { font-size: 36px; font-weight: 700; text-align: center; }
-  .card-back .card-english { font-size: 18px; opacity: 0.85; margin-top: 12px; }
-  .card-back .card-example { font-size: 14px; opacity: 0.75; margin-top: 16px; text-align: center; line-height: 1.5; }
+  .card-back .card-chinese { font-size: 32px; font-weight: 700; text-align: center; }
+  .card-back .card-english { font-size: 22px; font-weight: 600; font-style: italic; margin-top: 14px; opacity: 0.95; text-align: center; line-height: 1.4; word-break: break-word; }
 
   .hint { color: rgba(255,255,255,0.6); font-size: 13px; margin-bottom: 20px; text-align: center; }
 
@@ -347,8 +346,7 @@
     <div class="card-back">
       <div class="card-chinese" id="chinese"></div>
       <div class="card-english" id="englishBack"></div>
-      <button class="speak-btn" onclick="event.stopPropagation(); speakExample()" title="朗读例句">&#x1f50a;</button>
-      <div class="card-example" id="example"></div>
+      <button class="speak-btn" onclick="event.stopPropagation(); speakExample()" title="朗读整句">&#x1f50a;</button>
     </div>
   </div>
 </div>
@@ -1124,8 +1122,7 @@ function updateCard() {
   document.getElementById('word').textContent = w.en;
   document.getElementById('phonetic').textContent = w.phonetic;
   document.getElementById('chinese').textContent = w.zh;
-  document.getElementById('englishBack').textContent = w.en;
-  document.getElementById('example').textContent = `"${w.example}"`;
+  document.getElementById('englishBack').innerHTML = '<div style="margin-bottom:2px;">' + w.en + '</div><div style="font-size:15px;font-style:italic;opacity:0.75;">"' + w.example + '"</div>';
   document.getElementById('counter').textContent = `${currentIndex + 1} / ${cardList.length}`;
   document.getElementById('progress').style.width = ((currentIndex + 1) / cardList.length * 100) + '%';
   // Reset flip state
@@ -1174,7 +1171,7 @@ function speakExample() {
   else if (currentMode === 'test') w = words[testState.questions[testState.currentIndex]];
   else w = cardList[currentIndex];
   if (!w) return;
-  playYoudaoAudio(w.en);
+  playYoudaoAudio(w.example);
 }
 
 function playYoudaoAudio(word) {
@@ -1315,8 +1312,7 @@ function showLearningCard(idx) {
   document.getElementById('word').textContent = w.en;
   document.getElementById('phonetic').textContent = w.phonetic;
   document.getElementById('chinese').textContent = w.zh;
-  document.getElementById('englishBack').textContent = w.en;
-  document.getElementById('example').textContent = `"${w.example}"`;
+  document.getElementById('englishBack').innerHTML = '<div style="margin-bottom:2px;">' + w.en + '</div><div style="font-size:15px;font-style:italic;opacity:0.75;">"' + w.example + '"</div>';
   document.getElementById('card').classList.remove('flipped');
 
   learningState.seenCount++;
@@ -1348,8 +1344,7 @@ function showTestQuestion() {
   document.getElementById('word').textContent = w.en;
   document.getElementById('phonetic').textContent = w.phonetic;
   document.getElementById('chinese').textContent = w.zh;
-  document.getElementById('englishBack').textContent = w.en;
-  document.getElementById('example').textContent = `"${w.example}"`;
+  document.getElementById('englishBack').innerHTML = '<div style="margin-bottom:2px;">' + w.en + '</div><div style="font-size:15px;font-style:italic;opacity:0.75;">"' + w.example + '"</div>';
   document.getElementById('card').classList.remove('flipped');
 
   document.getElementById('counter').textContent = `${testState.currentIndex + 1} / ${testState.questions.length}`;
