@@ -1171,11 +1171,43 @@ function speakExample() {
   else if (currentMode === 'test') w = words[testState.questions[testState.currentIndex]];
   else w = cardList[currentIndex];
   if (!w) return;
-  window.speechSynthesis && window.speechSynthesis.cancel();
-  var utterance = new SpeechSynthesisUtterance(w.example);
-  utterance.lang = 'en-US';
-  utterance.rate = 0.85;
-  window.speechSynthesis.speak(utterance);
+  var sentence = w.example;
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  // Try Baidu TTS (supports full sentences)
+  var url = 'https://fanyi.baidu.com/gettts?lan=en&text=' + encodeURIComponent(sentence) + '&spd=3&source=web';
+  currentAudio = new Audio(url);
+  currentAudio.onended = function() { currentAudio = null; };
+  currentAudio.onerror = function() { _speakWithSynth(sentence); };
+  currentAudio.play().catch(function() {
+    _speakWithSynth(sentence);
+  });
+}
+
+function _speakWithSynth(sentence) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  // Ensure voices are loaded (some browsers need this)
+  var _doSpeak = function() {
+    var u = new SpeechSynthesisUtterance(sentence);
+    u.lang = 'en-US';
+    u.rate = 0.85;
+    u.pitch = 1;
+    // Prefer an English voice if available
+    var voices = window.speechSynthesis.getVoices();
+    var enVoice = voices.find(function(v) { return v.lang.indexOf('en') === 0; });
+    if (enVoice) u.voice = enVoice;
+    window.speechSynthesis.speak(u);
+  };
+  var voices = window.speechSynthesis.getVoices();
+  if (voices.length > 0) {
+    _doSpeak();
+  } else {
+    // Voices not loaded yet
+    window.speechSynthesis.onvoiceschanged = function() {
+      window.speechSynthesis.onvoiceschanged = null;
+      _doSpeak();
+    };
+  }
 }
 
 function playYoudaoAudio(word) {
