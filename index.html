@@ -1171,7 +1171,11 @@ function speakExample() {
   else if (currentMode === 'test') w = words[testState.questions[testState.currentIndex]];
   else w = cardList[currentIndex];
   if (!w) return;
-  playYoudaoAudio(w.example);
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  var utterance = new SpeechSynthesisUtterance(w.example);
+  utterance.lang = 'en-US';
+  utterance.rate = 0.85;
+  window.speechSynthesis.speak(utterance);
 }
 
 function playYoudaoAudio(word) {
